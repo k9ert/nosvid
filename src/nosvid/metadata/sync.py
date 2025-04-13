@@ -122,13 +122,14 @@ def fetch_video_metadata(video, videos_dir):
             'error': str(e)
         }
 
-def sync_metadata(api_key, channel_id, output_dir, max_videos=None, delay=5):
+def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=None, delay=5):
     """
     Sync metadata for all videos in a channel
 
     Args:
         api_key: YouTube API key
         channel_id: ID of the channel
+        channel_title: Title of the channel
         output_dir: Base directory for downloads
         max_videos: Maximum number of videos to sync (None for all)
         delay: Delay between operations in seconds
@@ -136,10 +137,21 @@ def sync_metadata(api_key, channel_id, output_dir, max_videos=None, delay=5):
     Returns:
         Dictionary with sync results
     """
-    # Get channel info
-    channel_info = get_channel_info(api_key, channel_id)
-    channel_title = channel_info['title']
-    print(f"Channel title: {channel_title}")
+    # Get channel info for saving metadata
+    channel_info = {
+        'title': channel_title,
+        'description': '',
+        'published_at': '',
+        'thumbnail_url': ''
+    }
+
+    # Try to get more detailed info if possible
+    try:
+        detailed_info = get_channel_info(api_key, channel_id)
+        if detailed_info['title'] != 'Unknown Channel':
+            channel_info = detailed_info
+    except Exception as e:
+        print(f"Warning: Could not get detailed channel info: {e}")
 
     # Set up directory structure
     dirs = setup_directory_structure(output_dir, channel_title)

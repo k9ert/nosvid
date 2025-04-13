@@ -27,10 +27,16 @@ def sync_command(args):
         channel_id = "UCxSRxq14XIoMbFDEjMOPU5Q"
         print(f"Using channel ID: {channel_id}")
 
+        # Get channel title, first from mapping, then from API if needed
+        # We need to get the title here because sync_metadata needs it for the API call
+        channel_title = get_channel_title(api_key, channel_id)
+        print(f"Channel title: {channel_title}")
+
         # Sync metadata
         result = sync_metadata(
             api_key=api_key,
             channel_id=channel_id,
+            channel_title=channel_title,
             output_dir=args.output_dir,
             max_videos=args.max_videos,
             delay=args.delay
@@ -41,6 +47,30 @@ def sync_command(args):
         print(f"Error: {str(e)}")
         return 1
 
+# Dictionary mapping channel IDs to their titles
+CHANNEL_MAPPING = {
+    "UCxSRxq14XIoMbFDEjMOPU5Q": "Einundzwanzig"
+}
+
+def get_channel_title(api_key, channel_id):
+    """
+    Get channel title, first from mapping, then from API if not found
+
+    Args:
+        api_key: YouTube API key
+        channel_id: ID of the channel
+
+    Returns:
+        Channel title
+    """
+    # First check if we have a hardcoded mapping
+    if channel_id in CHANNEL_MAPPING:
+        return CHANNEL_MAPPING[channel_id]
+
+    # If not, call the API
+    channel_info = get_channel_info(api_key, channel_id)
+    return channel_info['title']
+
 def list_command(args):
     """
     List videos in the repository
@@ -49,15 +79,11 @@ def list_command(args):
         args: Command-line arguments
     """
     try:
-        # Load API key
-        api_key = read_api_key_from_yaml('youtube', 'youtube.key')
-
         # Hardcoded channel ID for Einundzwanzig Podcast
         channel_id = "UCxSRxq14XIoMbFDEjMOPU5Q"
 
-        # Get channel info
-        channel_info = get_channel_info(api_key, channel_id)
-        channel_title = channel_info['title']
+        # Get channel title from mapping (no API call)
+        channel_title = CHANNEL_MAPPING[channel_id]
         print(f"Channel title: {channel_title}")
 
         # Set up directory structure
@@ -102,9 +128,8 @@ def download_command(args):
         # Hardcoded channel ID for Einundzwanzig Podcast
         channel_id = "UCxSRxq14XIoMbFDEjMOPU5Q"
 
-        # Get channel info
-        channel_info = get_channel_info(api_key, channel_id)
-        channel_title = channel_info['title']
+        # Get channel title, first from mapping, then from API if needed
+        channel_title = get_channel_title(api_key, channel_id)
         print(f"Channel title: {channel_title}")
 
         # Set up directory structure

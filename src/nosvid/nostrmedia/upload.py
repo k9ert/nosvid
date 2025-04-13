@@ -43,16 +43,17 @@ def create_signed_event(private_key, file_hash):
     Returns:
         Signed Nostr event
     """
+    # Get the public key from the private key
+    public_key = private_key.public_key.hex()
+
     # Create a custom event with kind 24242
     event = Event(
+        public_key=public_key,
         content="Uploading blob with SHA-256 hash",
         kind=24242,
-        created_at=int(time.time())
+        created_at=int(time.time()),
+        tags=[["t", "upload"], ["x", file_hash]]
     )
-
-    # Add required tags
-    event.tags.append(["t", "upload"])
-    event.tags.append(["x", file_hash])
 
     # Sign the event
     private_key.sign_event(event)

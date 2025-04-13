@@ -39,11 +39,12 @@ pip install -e .
 
 ## Usage
 
-NosVid provides a simple command-line interface with three main commands:
+NosVid provides a simple command-line interface with four main commands:
 
 - `sync`: Sync metadata for all videos in a channel
 - `list`: List videos in the repository
 - `download`: Download videos
+- `nostrmedia`: Upload videos to nostrmedia.com
 
 ### Quick Start
 
@@ -59,6 +60,9 @@ NosVid provides a simple command-line interface with three main commands:
 
 # Download all pending videos
 ./nosvid download --output-dir ./downloads
+
+# Upload a video to nostrmedia.com
+./nosvid nostrmedia VIDEO_ID --output-dir ./downloads
 ```
 
 ### Sync Metadata
@@ -105,6 +109,26 @@ Options:
 - `--output-dir`: Base directory for downloads (default: ~/Downloads/nosvid)
 - `--quality`: Video quality (default: best)
 - `--delay`: Delay between downloads in seconds (default: 5)
+
+### Upload to Nostrmedia
+
+To upload a video to nostrmedia.com:
+
+```bash
+./nosvid nostrmedia VIDEO_ID --output-dir ./downloads
+```
+
+You can also provide a private key for signing the upload:
+
+```bash
+./nosvid nostrmedia VIDEO_ID --private-key YOUR_PRIVATE_KEY --output-dir ./downloads
+```
+
+The private key can be in hex format or nsec format (bech32-encoded). If not provided, a new key will be generated.
+
+Options:
+- `--output-dir`: Base directory for downloads (default: ~/Downloads/nosvid)
+- `--private-key`: Private key string (hex or nsec format, if not provided, a new key will be generated)
 
 ## Repository Structure
 

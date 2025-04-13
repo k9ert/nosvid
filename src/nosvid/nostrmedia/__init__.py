@@ -1,0 +1,3 @@
+"""
+Nostrmedia integration for nosvid
+"""

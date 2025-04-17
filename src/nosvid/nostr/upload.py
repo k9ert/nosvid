@@ -93,12 +93,20 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
 
         # Extract relevant metadata
         title = metadata.get('title', 'Untitled Video')
-        description = metadata.get('description', '')
+        description = metadata.get('full_description', metadata.get('description', ''))
         published_at = metadata.get('published_at', '')
         channel_title = metadata.get('channel_title', '')
         video_id = metadata.get('video_id', '')
         youtube_url = metadata.get('youtube_url', f"https://www.youtube.com/watch?v={video_id}" if video_id else '')
         nostrmedia_url = metadata.get('nostrmedia_url', '')
+
+        if debug:
+            print("\n=== DEBUG: Metadata ===")
+            print(f"Title: {title}")
+            print(f"Channel: {channel_title}")
+            print(f"Published: {published_at}")
+            print(f"Description length: {len(description) if description else 0} characters")
+            print(f"Using full_description: {'Yes' if 'full_description' in metadata else 'No'}")
 
         # Create content for the Nostr event
         content = f"# {title}\n\n"
@@ -120,14 +128,9 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
         if published_at:
             content += f"Published: {published_at}\n\n"
 
-        # Add a shortened version of the description (if it's too long)
+        # Add the full description
         if description:
-            # Limit description to 500 characters to keep the note concise
-            if len(description) > 500:
-                short_description = description[:497] + "..."
-                content += f"{short_description}\n\n"
-            else:
-                content += f"{description}\n\n"
+            content += f"{description}\n\n"
 
         if debug:
             print("\n=== DEBUG: Event Content ===")
@@ -176,8 +179,7 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
             # Add media tag for better client support
             tags.append(Tag.parse(["m", "video/mp4"]))
 
-        # Add content warning tag to indicate this is a video
-        tags.append(Tag.parse(["content-warning", "video"]))
+        # We don't add a content warning tag as it's not needed for videos
 
         builder = builder.tags(tags)
 

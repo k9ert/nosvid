@@ -5,11 +5,14 @@ Command-line interface commands for nosvid
 import argparse
 import sys
 import os
+import glob
 from datetime import datetime
 
 from ..utils.config import read_api_key_from_yaml, get_default_output_dir, get_default_video_quality, get_default_download_delay
 from ..utils.filesystem import setup_directory_structure, load_json_file, save_json_file, get_platform_dir
 from ..utils.youtube_api import get_channel_info
+from ..utils.consistency import check_metadata_consistency
+from ..utils.find_oldest import find_oldest_not_downloaded, find_oldest_not_posted
 from ..metadata.sync import sync_metadata
 from ..metadata.list import list_videos, print_video_list
 from ..download.video import download_video, download_all_pending
@@ -165,7 +168,7 @@ def download_command(args):
         # Set up directory structure
         dirs = setup_directory_structure(args.output_dir, channel_title)
 
-        # Download specific video or all pending videos
+        # Download specific video, oldest not downloaded, or all pending videos
         if args.video_id:
             # Download specific video
             success = download_video(
@@ -179,6 +182,30 @@ def download_command(args):
                 return 0
             else:
                 print(f"Failed to download video: {args.video_id}")
+                return 1
+        elif args.oldest:
+            # Find the oldest video that hasn't been downloaded yet
+            oldest_video = find_oldest_not_downloaded(dirs['videos_dir'])
+
+            if not oldest_video:
+                print("No videos found that haven't been downloaded yet.")
+                return 0
+
+            video_id = oldest_video['video_id']
+            print(f"Found oldest not downloaded video: {oldest_video['title']} ({video_id})")
+
+            # Download the oldest video
+            success = download_video(
+                video_id=video_id,
+                videos_dir=dirs['videos_dir'],
+                quality=args.quality
+            )
+
+            if success:
+                print(f"Successfully downloaded video: {video_id}")
+                return 0
+            else:
+                print(f"Failed to download video: {video_id}")
                 return 1
         else:
             # Download all pending videos
@@ -332,6 +359,33 @@ def nostrmedia_command(args):
         print(f"Error: {str(e)}")
         return 1
 
+def consistency_check_command(args):
+    """
+    Check consistency of metadata.json files for all videos
+
+    Args:
+        args: Command-line arguments
+    """
+    try:
+        # Hardcoded channel ID for Einundzwanzig Podcast
+        channel_id = "UCxSRxq14XIoMbFDEjMOPU5Q"
+
+        # Get channel title from mapping (no API call)
+        channel_title = CHANNEL_MAPPING[channel_id]
+        print(f"Channel title: {channel_title}")
+
+        # Check metadata consistency
+        result = check_metadata_consistency(args.output_dir, channel_title, args.fix)
+
+        if result['checked'] > 0:
+            return 0
+        else:
+            print("No videos checked.")
+            return 1
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return 1
+
 def nostr_command(args):
     """
     Upload videos to the Nostr network
@@ -340,11 +394,6 @@ def nostr_command(args):
         args: Command-line arguments
     """
     try:
-        # Check if a video ID is provided
-        if not args.video_id:
-            print("Error: No video ID provided.")
-            return 1
-
         # Load API key (for getting channel info)
         api_key = read_api_key_from_yaml('youtube', 'youtube.key')
 
@@ -354,6 +403,28 @@ def nostr_command(args):
         # Get channel title, first from mapping, then from API if needed
         channel_title = get_channel_title(api_key, channel_id)
         print(f"Channel title: {channel_title}")
+
+        # Check if a video ID is provided or if we should use the oldest not posted
+        if not args.video_id and not args.oldest:
+            print("Error: No video ID provided and --oldest flag not set.")
+            return 1
+
+        # If --oldest flag is set, find the oldest video that hasn't been posted to Nostr yet
+        if args.oldest:
+            # Set up directory structure
+            dirs = setup_directory_structure(args.output_dir, channel_title)
+
+            # Find the oldest video that hasn't been posted to Nostr yet
+            oldest_video = find_oldest_not_posted(dirs['videos_dir'])
+
+            if not oldest_video:
+                print("No videos found that haven't been posted to Nostr yet.")
+                return 0
+
+            args.video_id = oldest_video['video_id']
+            print(f"Found oldest not posted video: {oldest_video['title']} ({args.video_id})")
+
+        # Channel title and API key are already loaded above
 
         # Set up directory structure
         dirs = setup_directory_structure(args.output_dir, channel_title)
@@ -474,6 +545,17 @@ def nostr_command(args):
         # Add YouTube URL to metadata if not present
         if 'youtube_url' not in metadata:
             metadata['youtube_url'] = f"https://www.youtube.com/watch?v={args.video_id}"
+
+        # Check for description file in the YouTube directory
+        description_files = glob.glob(os.path.join(youtube_dir, "*.description"))
+        if description_files:
+            try:
+                with open(description_files[0], 'r', encoding='utf-8') as f:
+                    full_description = f.read()
+                    metadata['full_description'] = full_description
+                    print(f"Found description file: {os.path.basename(description_files[0])}")
+            except Exception as e:
+                print(f"Warning: Could not read description file: {e}")
 
         # Check if the video has already been uploaded to nostrmedia
         if 'platforms' in metadata and 'nostrmedia' in metadata['platforms']:
@@ -635,7 +717,12 @@ def main():
         'video_id',
         type=str,
         nargs='?',
-        help='ID of the video to download (if not specified, download all pending videos)'
+        help='ID of the video to download (if not specified, use --oldest or download all pending videos)'
+    )
+    download_parser.add_argument(
+        '--oldest',
+        action='store_true',
+        help='Download the oldest video that hasn\'t been downloaded yet'
     )
     download_parser.add_argument(
         '--quality',
@@ -679,7 +766,13 @@ def main():
     nostr_parser.add_argument(
         'video_id',
         type=str,
-        help='ID of the video to upload'
+        nargs='?',
+        help='ID of the video to upload (if not specified, use --oldest)'
+    )
+    nostr_parser.add_argument(
+        '--oldest',
+        action='store_true',
+        help='Upload the oldest video that hasn\'t been posted to Nostr yet'
     )
     nostr_parser.add_argument(
         '--private-key',
@@ -690,6 +783,17 @@ def main():
         '--debug',
         action='store_true',
         help='Enable debug output for Nostr upload'
+    )
+
+    # Create the parser for the "consistency-check" command
+    consistency_check_parser = subparsers.add_parser(
+        'consistency-check',
+        help='Check consistency of metadata.json files for all videos'
+    )
+    consistency_check_parser.add_argument(
+        '--fix',
+        action='store_true',
+        help='Fix inconsistencies'
     )
 
     # Parse arguments
@@ -706,6 +810,8 @@ def main():
         return nostrmedia_command(args)
     elif args.command == 'nostr':
         return nostr_command(args)
+    elif args.command == 'consistency-check':
+        return consistency_check_command(args)
     else:
         parser.print_help()
         return 0

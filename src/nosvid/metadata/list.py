@@ -8,6 +8,12 @@ import glob
 from datetime import datetime
 from ..utils.filesystem import load_json_file, save_json_file, get_video_dir, get_platform_dir
 
+# ANSI color codes
+COLORS = {
+    'ORANGE': '\033[38;5;208m',  # Orange color
+    'RESET': '\033[0m'           # Reset to default color
+}
+
 def generate_metadata_from_files(video_dir, video_id):
     """
     Generate metadata.json from existing files in the video directory
@@ -117,7 +123,9 @@ def list_videos(videos_dir, metadata_dir=None, channel_id=None, show_downloaded=
         'total_in_cache': 0,
         'total_with_metadata': 0,
         'total_downloaded': 0,
-        'total_uploaded_nm': 0
+        'total_uploaded_nm': 0,
+        'total_with_npubs': 0,
+        'total_npubs': 0
     }
 
     # Get the total number of videos in cache if metadata_dir and channel_id are provided
@@ -173,6 +181,21 @@ def list_videos(videos_dir, metadata_dir=None, channel_id=None, show_downloaded=
             if nostrmedia_url:
                 stats['total_uploaded_nm'] += 1
 
+        # Count npubs if they exist in metadata
+        npub_count = 0
+        if 'npubs' in main_metadata:
+            # Count npubs in chat
+            if 'chat' in main_metadata['npubs']:
+                npub_count += len(main_metadata['npubs']['chat'])
+            # Count npubs in description
+            if 'description' in main_metadata['npubs']:
+                npub_count += len(main_metadata['npubs']['description'])
+
+            # Update stats if npubs were found
+            if npub_count > 0:
+                stats['total_with_npubs'] += 1
+                stats['total_npubs'] += npub_count
+
         videos.append({
             'video_id': video_id,
             'title': main_metadata.get('title', 'Unknown'),
@@ -180,11 +203,12 @@ def list_videos(videos_dir, metadata_dir=None, channel_id=None, show_downloaded=
             'duration': main_metadata.get('duration', 0),  # Add duration field
             'downloaded': youtube_downloaded,
             'url': main_metadata.get('platforms', {}).get('youtube', {}).get('url', ''),
-            'nostrmedia_url': nostrmedia_url
+            'nostrmedia_url': nostrmedia_url,
+            'npub_count': npub_count  # Add npub count
         })
 
-    # Sort by published date (newest first)
-    videos.sort(key=lambda x: x.get('published_at', ''), reverse=True)
+    # Sort by published date (oldest first)
+    videos.sort(key=lambda x: x.get('published_at', ''), reverse=False)
 
     return videos, stats
 
@@ -206,16 +230,21 @@ def print_video_list(videos, stats=None, show_index=True):
         total_with_metadata = stats.get('total_with_metadata', 0)
         total_downloaded = stats.get('total_downloaded', 0)
         total_uploaded_nm = stats.get('total_uploaded_nm', 0)
+        total_with_npubs = stats.get('total_with_npubs', 0)
+        total_npubs = stats.get('total_npubs', 0)
 
         # Calculate percentages
         metadata_percent = (total_with_metadata / total_in_cache * 100) if total_in_cache > 0 else 0
         downloaded_percent = (total_downloaded / total_in_cache * 100) if total_in_cache > 0 else 0
         uploaded_nm_percent = (total_uploaded_nm / total_in_cache * 100) if total_in_cache > 0 else 0
+        npubs_percent = (total_with_npubs / total_in_cache * 100) if total_in_cache > 0 else 0
 
         print(f"Videos in cache (YT):     {total_in_cache}")
         print(f"Metadata (YT):            {total_with_metadata:4d} / {total_in_cache} ({metadata_percent:.1f}%)")
         print(f"Downloaded (YT):          {total_downloaded:4d} / {total_in_cache} ({downloaded_percent:.1f}%)")
         print(f"Uploaded (NM):            {total_uploaded_nm:4d} / {total_in_cache} ({uploaded_nm_percent:.1f}%)")
+        print(f"Videos with npubs:        {total_with_npubs:4d} / {total_in_cache} ({npubs_percent:.1f}%)")
+        print(f"Total npubs found:        {total_npubs}")
         print("-" * 60)
 
     if not videos:
@@ -237,10 +266,18 @@ def print_video_list(videos, stats=None, show_index=True):
         duration_minutes = round(duration_seconds / 60, 1) if duration_seconds > 0 else 0
         duration_str = f"{duration_minutes:.1f} min" if duration_minutes > 0 else ""
 
+        # Create engagement bar based on npub count
+        npub_count = video.get('npub_count', 0)
+        # Cap at 10 for display purposes
+        display_count = min(npub_count, 10)
+        # Create the engagement bar with orange blocks (using unicode block character)
+        orange_blocks = f"{COLORS['ORANGE']}{'█' * display_count}{COLORS['RESET']}"
+        engagement_bar = f"[{orange_blocks}{' ' * (10 - display_count)}]"
+
         # Format the output
         if show_index:
-            print(f"{i:3d}. [YT:{yt_status}|NM:{nm_status}] {video['video_id']} ({published}) {duration_str} - {video['title']}")
+            print(f"{i:3d}. [YT:{yt_status}|NM:{nm_status}] {video['video_id']} ({published}) {engagement_bar} {duration_str} - {video['title']}")
         else:
-            print(f"[YT:{yt_status}|NM:{nm_status}] {video['video_id']} ({published}) {duration_str} - {video['title']}")
+            print(f"[YT:{yt_status}|NM:{nm_status}] {video['video_id']} ({published}) {engagement_bar} {duration_str} - {video['title']}")
 
     print("-" * 100)

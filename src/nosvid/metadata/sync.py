@@ -18,6 +18,7 @@ from ..utils.filesystem import (
     create_safe_filename
 )
 from ..utils.youtube_api import get_channel_info, get_all_videos_from_channel
+from ..utils.nostr import process_video_directory
 
 def load_sync_history(metadata_dir):
     """
@@ -215,8 +216,8 @@ def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=Non
 
     print(f"Found {len(videos)} videos")
 
-    # Sort videos by published date (newest first)
-    videos.sort(key=lambda x: x['published_at'], reverse=True)
+    # Sort videos by published date (oldest first)
+    videos.sort(key=lambda x: x['published_at'], reverse=False)
 
     # If a specific video ID is provided, only sync that video
     if specific_video_id:
@@ -274,6 +275,34 @@ def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=Non
         result = fetch_video_metadata(video, dirs['videos_dir'])
 
         if result['success']:
+            # Post-process the video directory to extract npubs
+            video_dir = os.path.join(dirs['videos_dir'], video_id)
+            if os.path.exists(video_dir):
+                # Process the video directory to extract npubs
+                chat_npubs, description_npubs = process_video_directory(video_dir)
+
+                if chat_npubs or description_npubs:
+                    print(f"Found npubs - Chat: {len(chat_npubs)}, Description: {len(description_npubs)}")
+
+                    # Update the main metadata file with npubs
+                    main_metadata_file = os.path.join(video_dir, 'metadata.json')
+                    if os.path.exists(main_metadata_file):
+                        main_metadata = load_json_file(main_metadata_file)
+
+                        # Add npubs section if any were found
+                        if chat_npubs or description_npubs:
+                            main_metadata['npubs'] = {}
+
+                            if chat_npubs:
+                                main_metadata['npubs']['chat'] = chat_npubs
+
+                            if description_npubs:
+                                main_metadata['npubs']['description'] = description_npubs
+
+                        # Save updated metadata
+                        save_json_file(main_metadata_file, main_metadata)
+                        print(f"Updated metadata with npubs information")
+
             successful += 1
         else:
             failed += 1

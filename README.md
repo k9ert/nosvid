@@ -108,7 +108,29 @@ nosvid nostrmedia VIDEO_ID
 
 # Publish a video to the Nostr network
 nosvid nostr VIDEO_ID
+
+# Check consistency of metadata.json files
+nosvid consistency-check
+
+# Fix inconsistencies in metadata.json files
+nosvid consistency-check --fix
 ```
+
+### Consistency Check
+
+To check the consistency of metadata.json files for all videos:
+
+```bash
+nosvid consistency-check
+```
+
+To automatically fix inconsistencies:
+
+```bash
+nosvid consistency-check --fix
+```
+
+This command checks all videos in the repository, recreates the metadata.json files, and reports any differences. It's useful for ensuring that all metadata is up-to-date and consistent, including npub extraction from chat and description files.
 
 ### Sync Metadata
 
@@ -144,9 +166,10 @@ To minimize YouTube API quota usage, the tool caches the channel video list for 
 The sync command processes videos efficiently:
 
 1. It filters out videos that are already synced
-2. It only processes new videos up to the specified `--max-videos` limit
-3. Each time you run the command with a limit, it will process the next batch of new videos
-4. This ensures you can gradually sync all videos without hitting API quotas
+2. It processes videos in chronological order (oldest first)
+3. It only processes new videos up to the specified `--max-videos` limit
+4. Each time you run the command with a limit, it will process the next batch of new videos
+5. This ensures you can gradually sync all videos without hitting API quotas
 
 ### List Videos
 
@@ -163,11 +186,13 @@ The list command shows a comprehensive repository status summary at the beginnin
 3. The number of downloaded videos (and percentage)
 4. The number of videos uploaded to Nostrmedia (and percentage)
 
-Followed by the list of videos with their status in the format:
+The videos are listed in chronological order (oldest first) with their status in the format:
 
 ```
-[YT:✓|NM: ] VIDEO_ID (DATE) DURATION - TITLE
+[YT:✓|NM: ] VIDEO_ID (DATE) [ENGAGEMENT] DURATION - TITLE
 ```
+
+The engagement column shows an orange bar representing the number of npubs found in the video's chat and description files. The bar is capped at 10 npubs for display purposes.
 
 For example:
 
@@ -175,15 +200,18 @@ For example:
 Repository Status:
 ------------------------------------------------------------
 Videos in cache (YT):     434
-Metadata (YT):              17 / 434 (3.9%)
-Downloaded (YT):             1 / 434 (0.2%)
-Uploaded (NM):               0 / 434 (0.0%)
+Metadata (YT):              47 / 434 (10.8%)
+Downloaded (YT):             4 / 434 (0.9%)
+Uploaded (NM):               3 / 434 (0.7%)
+Videos with npubs:           6 / 434 (1.4%)
+Total npubs found:        9
 ------------------------------------------------------------
 
 Found 17 videos:
 ----------------------------------------------------------------------------------------------------
-  1. [YT: |NM: ] RvZJnzslz3k (2025-04-17) 65.1 min - 🔴 Einundzwanzig Live #17 - ACHTUNG: MASSIVE PREMIUMTURBO BITCOIN CANDLE
-  2. [YT:✓|NM: ] Eqn5l8S3WXw (2025-04-16) 9.9 min - Bitcoin Seedphrase | Das musst du wissen
+  1. [YT: |NM: ] RvZJnzslz3k (2025-04-17) [          ] 65.1 min - 🔴 Einundzwanzig Live #17 - ACHTUNG: MASSIVE PREMIUMTURBO BITCOIN CANDLE
+  2. [YT:✓|NM: ] Eqn5l8S3WXw (2025-04-16) [          ] 9.9 min - Bitcoin Seedphrase | Das musst du wissen
+  3. [YT: |NM: ] YjFgaDOrGmo (2025-03-27) [██        ] 73.0 min - 🔴 Einundzwanzig Live #14 - Mit Tanja, Daniel und Finn
 ```
 
 Options:
@@ -199,6 +227,12 @@ To download a specific video by ID:
 nosvid download VIDEO_ID
 ```
 
+To download the oldest video that hasn't been downloaded yet:
+
+```bash
+nosvid download --oldest
+```
+
 To download all videos that have not been downloaded yet:
 
 ```bash
@@ -207,6 +241,7 @@ nosvid download
 
 Options:
 - `--output-dir`: Base directory for downloads (default: ./repository)
+- `--oldest`: Download the oldest video that hasn't been downloaded yet
 - `--quality`: Video quality (default: best)
 - `--delay`: Delay between downloads in seconds (default: 5)
 
@@ -248,10 +283,16 @@ Options:
 
 ### Publish to Nostr
 
-To publish a video to the Nostr network:
+To publish a specific video to the Nostr network:
 
 ```bash
 nosvid nostr VIDEO_ID
+```
+
+To publish the oldest video that hasn't been posted to Nostr yet:
+
+```bash
+nosvid nostr --oldest
 ```
 
 This command creates a Nostr note with the video metadata and embeds the video. If the video has already been uploaded to nostrmedia.com, it will use the nostrmedia URL for embedding. Otherwise, it will use the YouTube URL.
@@ -282,6 +323,7 @@ The private key can be in hex format or nsec format (bech32-encoded). If not pro
 
 Options:
 - `--output-dir`: Base directory for downloads (default: ./repository)
+- `--oldest`: Upload the oldest video that hasn't been posted to Nostr yet
 - `--private-key`: Private key string (hex or nsec format, if not provided, will use from config)
 - `--debug`: Enable debug output for detailed information about the publishing process
 

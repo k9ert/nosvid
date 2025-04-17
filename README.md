@@ -68,7 +68,7 @@ For development (includes testing tools), install with the dev extra:
 pip install -e .[dev]
 ```
 
-Note: The nostr package requires additional system dependencies. If you encounter issues installing it, you can still use the rest of the functionality without it.
+Note: The nostr-sdk package is used for nostrmedia upload functionality. If you encounter issues installing it, you can still use the rest of the functionality without it.
 
 ## Usage
 

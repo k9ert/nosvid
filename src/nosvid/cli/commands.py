@@ -14,6 +14,7 @@ from ..metadata.sync import sync_metadata
 from ..metadata.list import list_videos, print_video_list
 from ..download.video import download_video, download_all_pending
 from ..nostrmedia.upload import upload_to_nostrmedia
+from ..nostr.upload import upload_to_nostr
 
 def sync_command(args):
     """
@@ -228,7 +229,7 @@ def nostrmedia_command(args):
         print(f"Found video file: {os.path.basename(video_file)}")
 
         # Upload the video to nostrmedia.com
-        result = upload_to_nostrmedia(video_file, args.private_key)
+        result = upload_to_nostrmedia(video_file, args.private_key, debug=args.debug)
 
         if result['success']:
             print(f"Video uploaded successfully to: {result['url']}")
@@ -274,6 +275,133 @@ def nostrmedia_command(args):
         print(f"Error: {str(e)}")
         return 1
 
+def nostr_command(args):
+    """
+    Upload videos to the Nostr network
+
+    Args:
+        args: Command-line arguments
+    """
+    try:
+        # Check if a video ID is provided
+        if not args.video_id:
+            print("Error: No video ID provided.")
+            return 1
+
+        # Load API key (for getting channel info)
+        api_key = read_api_key_from_yaml('youtube', 'youtube.key')
+
+        # Hardcoded channel ID for Einundzwanzig Podcast
+        channel_id = "UCxSRxq14XIoMbFDEjMOPU5Q"
+
+        # Get channel title, first from mapping, then from API if needed
+        channel_title = get_channel_title(api_key, channel_id)
+        print(f"Channel title: {channel_title}")
+
+        # Set up directory structure
+        dirs = setup_directory_structure(args.output_dir, channel_title)
+
+        # Find the video directory
+        video_dir = os.path.join(dirs['videos_dir'], args.video_id)
+
+        if not os.path.exists(video_dir):
+            print(f"Error: Video directory not found for ID {args.video_id}")
+            return 1
+
+        # Load the video metadata
+        metadata_file = os.path.join(video_dir, 'metadata.json')
+        if not os.path.exists(metadata_file):
+            print(f"Error: Metadata file not found for ID {args.video_id}")
+            return 1
+
+        metadata = load_json_file(metadata_file)
+
+        # Find video files in the youtube subdirectory
+        youtube_dir = os.path.join(video_dir, 'youtube')
+        if not os.path.exists(youtube_dir):
+            print(f"Error: YouTube directory not found for ID {args.video_id}")
+            return 1
+
+        video_files = []
+        for ext in ['.mp4', '.webm', '.mkv']:
+            video_files.extend([os.path.join(youtube_dir, f) for f in os.listdir(youtube_dir) if f.endswith(ext)])
+
+        if not video_files:
+            print(f"Error: No video files found in {youtube_dir}")
+            return 1
+
+        # Use the first video file found
+        video_file = video_files[0]
+        print(f"Found video file: {os.path.basename(video_file)}")
+
+        # Add video_id to metadata
+        metadata['video_id'] = args.video_id
+
+        # Add YouTube URL to metadata if not present
+        if 'youtube_url' not in metadata:
+            metadata['youtube_url'] = f"https://www.youtube.com/watch?v={args.video_id}"
+
+        # Check if the video has already been uploaded to nostrmedia
+        if 'platforms' in metadata and 'nostrmedia' in metadata['platforms']:
+            nostrmedia_data = metadata['platforms']['nostrmedia']
+            if 'url' in nostrmedia_data:
+                metadata['nostrmedia_url'] = nostrmedia_data['url']
+                print(f"Found nostrmedia URL: {metadata['nostrmedia_url']}")
+
+        # If not uploaded to nostrmedia yet, suggest to do so
+        if 'nostrmedia_url' not in metadata:
+            print("Note: This video has not been uploaded to nostrmedia yet.")
+            print(f"Consider running './nosvid nostrmedia {args.video_id}' first for better embedding.")
+
+        # Upload the video to Nostr
+        result = upload_to_nostr(video_file, metadata, args.private_key, debug=args.debug)
+
+        if result['success']:
+            # Create platform-specific directory for nostr
+            nostr_dir = get_platform_dir(video_dir, 'nostr')
+
+            # Create nostr-specific metadata
+            nostr_metadata = {
+                'event_id': result['event_id'],
+                'pubkey': result['pubkey'],
+                'nostr_uri': result['nostr_uri'],
+                'links': result['links'],
+                'uploaded_at': datetime.now().isoformat()
+            }
+
+            # Save nostr-specific metadata
+            nostr_metadata_file = os.path.join(nostr_dir, 'metadata.json')
+            save_json_file(nostr_metadata_file, nostr_metadata)
+
+            # Update main metadata to include the nostr platform
+            main_metadata_file = os.path.join(video_dir, 'metadata.json')
+            if os.path.exists(main_metadata_file):
+                main_metadata = load_json_file(main_metadata_file)
+
+                # Initialize platforms dict if it doesn't exist
+                if 'platforms' not in main_metadata:
+                    main_metadata['platforms'] = {}
+
+                # Add nostr platform
+                main_metadata['platforms']['nostr'] = {
+                    'event_id': result['event_id'],
+                    'pubkey': result['pubkey'],
+                    'nostr_uri': result['nostr_uri'],
+                    'links': result['links'],
+                    'uploaded_at': datetime.now().isoformat()
+                }
+
+                save_json_file(main_metadata_file, main_metadata)
+                print(f"Updated metadata with Nostr event information")
+
+            return 0
+        else:
+            print(f"Error uploading to Nostr: {result['error']}")
+            return 1
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return 1
+
 def main():
     """
     Main entry point for the CLI
@@ -290,6 +418,11 @@ def main():
         type=str,
         default=get_default_output_dir(),
         help='Base directory for downloads'
+    )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug output'
     )
 
     # Create subparsers for commands
@@ -377,6 +510,32 @@ def main():
         type=str,
         help='Private key string (hex or nsec format, if not provided, will use from config or generate a new one)'
     )
+    nostrmedia_parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug output for nostrmedia upload'
+    )
+
+    # Create the parser for the "nostr" command
+    nostr_parser = subparsers.add_parser(
+        'nostr',
+        help='Upload videos to the Nostr network'
+    )
+    nostr_parser.add_argument(
+        'video_id',
+        type=str,
+        help='ID of the video to upload'
+    )
+    nostr_parser.add_argument(
+        '--private-key',
+        type=str,
+        help='Private key string (hex or nsec format, if not provided, will use from config)'
+    )
+    nostr_parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug output for Nostr upload'
+    )
 
     # Parse arguments
     args = parser.parse_args()
@@ -390,6 +549,8 @@ def main():
         return download_command(args)
     elif args.command == 'nostrmedia':
         return nostrmedia_command(args)
+    elif args.command == 'nostr':
+        return nostr_command(args)
     else:
         parser.print_help()
         return 0

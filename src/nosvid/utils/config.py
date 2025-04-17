@@ -82,6 +82,33 @@ def get_nostr_key(key_type):
         return config['nostr'][key_type]
     return None
 
+def get_nostr_relays():
+    """
+    Get Nostr relays from configuration
+
+    Returns:
+        List of relay URLs or None if not found
+    """
+    config = load_config()
+    if 'nostr' in config and 'relays' in config['nostr']:
+        return config['nostr']['relays']
+
+    # Default relays if not specified in config
+    return [
+        # Primary relays
+        "wss://relay.damus.io",        # Damus relay (very popular)
+        "wss://nos.lol",              # nos.lol (very reliable)
+        "wss://nostr.wine",           # nostr.wine (popular for media)
+        "wss://relay.nostr.band",     # nostr.band (search indexer)
+        "wss://relay.snort.social",   # Snort relay (popular client)
+        "wss://purplepag.es",         # Purple Pages (directory)
+
+        # Secondary relays
+        "wss://nostr.mutinywallet.com", # Mutiny wallet relay
+        "wss://relay.nostrudel.ninja",  # Nostrudel relay
+        "wss://relay.primal.net"        # Primal relay
+    ]
+
 def get_default_output_dir():
     """
     Get the default output directory for downloads

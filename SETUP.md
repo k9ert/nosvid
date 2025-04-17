@@ -137,6 +137,6 @@ If you encounter permission issues when installing packages, try using the `--us
 pip install --user -e .
 ```
 
-### Nostr Package Installation Issues
+### Nostr SDK Package Installation Issues
 
-The nostr package requires additional system dependencies. If you encounter issues installing it, you can still use the rest of the functionality without it.
+The nostr-sdk package is used for nostrmedia upload functionality. If you encounter issues installing it, you can still use the rest of the functionality without it.

@@ -9,9 +9,17 @@ import requests
 import base64
 import json
 from datetime import datetime
-from nostr.key import PrivateKey
-from nostr.event import Event
-from nostr.event import EventKind
+from ..utils.config import get_nostr_key
+
+# Try to import nostr packages, but make them optional
+try:
+    from nostr.key import PrivateKey
+    from nostr.event import Event
+    from nostr.event import EventKind
+    NOSTR_AVAILABLE = True
+except ImportError:
+    NOSTR_AVAILABLE = False
+    print("Warning: nostr package not available. Nostrmedia upload functionality will be limited.")
 
 def compute_sha256(file_path):
     """
@@ -66,11 +74,17 @@ def upload_to_nostrmedia(file_path, private_key_str=None):
 
     Args:
         file_path: Path to the file to upload
-        private_key_str: Private key string (hex or nsec format, if None, a new key will be generated)
+        private_key_str: Private key string (hex or nsec format, if None, will try to use from config)
 
     Returns:
         Dictionary with upload result
     """
+    if not NOSTR_AVAILABLE:
+        return {
+            'success': False,
+            'error': "Nostr package not available. Please install it with 'pip install nostr'"
+        }
+
     if not os.path.exists(file_path):
         return {
             'success': False,
@@ -84,6 +98,7 @@ def upload_to_nostrmedia(file_path, private_key_str=None):
 
         # Create or load private key
         if private_key_str:
+            # Use the provided private key
             try:
                 # Check if it's a bech32-encoded key (starts with 'nsec')
                 if private_key_str.startswith('nsec'):
@@ -97,7 +112,23 @@ def upload_to_nostrmedia(file_path, private_key_str=None):
                     'error': f"Invalid private key format: {str(e)}"
                 }
         else:
-            private_key = PrivateKey()
+            # Try to get the private key from config
+            config_nsec = get_nostr_key('nsec')
+            if config_nsec:
+                try:
+                    if config_nsec.startswith('nsec'):
+                        private_key = PrivateKey.from_nsec(config_nsec)
+                    else:
+                        private_key = PrivateKey(bytes.fromhex(config_nsec))
+                    print("Using private key from config.yaml")
+                except Exception as e:
+                    print(f"Warning: Invalid private key in config: {str(e)}")
+                    print("Generating a new private key instead")
+                    private_key = PrivateKey()
+            else:
+                # If no key is provided or found in config, generate a new one
+                print("No private key provided or found in config. Generating a new one.")
+                private_key = PrivateKey()
 
         # Create and sign the event
         event = create_signed_event(private_key, file_hash)

@@ -114,9 +114,7 @@ dmypy.json
 .pyre/
 
 # Project specific
-youtube.key
-secrets.yaml
-test_downloads/
-test_metadata/
+config.yaml
+repository/
 *.txt
 !requirements.txt

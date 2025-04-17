@@ -27,7 +27,40 @@ cd nosvid
 pip install -r requirements.txt
 ```
 
-3. Make sure you have a YouTube API key in `youtube.key` file or in `secrets.yaml`
+3. Create a `config.yaml` file in the root directory with your configuration:
+
+```yaml
+# NosVid Configuration File
+
+# YouTube API Configuration
+youtube:
+  api_key: "YOUR_YOUTUBE_API_KEY_HERE"
+
+# Nostr Configuration (optional, for nostrmedia upload functionality)
+nostr:
+  # Private key (hex or nsec format)
+  nsec: "YOUR_NSEC_HERE"
+  # Public key (hex or npub format)
+  npub: "YOUR_NPUB_HERE"
+
+# Default Settings
+defaults:
+  output_dir: "./repository"
+  video_quality: "best"
+  download_delay: 5
+```
+
+Alternatively, you can still use a `youtube.key` file or `secrets.yaml` for backward compatibility.
+
+### Optional Dependencies
+
+For nostrmedia upload functionality, you'll need to install the nostr package:
+
+```bash
+pip install nostr
+```
+
+Note: The nostr package requires additional system dependencies. If you encounter issues installing it, you can still use the rest of the functionality without it.
 
 ### Development Installation
 
@@ -50,19 +83,19 @@ NosVid provides a simple command-line interface with four main commands:
 
 ```bash
 # Sync metadata for all videos
-./nosvid sync --output-dir ./downloads
+./nosvid sync
 
 # List all videos
-./nosvid list --output-dir ./downloads
+./nosvid list
 
 # Download a specific video
-./nosvid download VIDEO_ID --output-dir ./downloads
+./nosvid download VIDEO_ID
 
 # Download all pending videos
-./nosvid download --output-dir ./downloads
+./nosvid download
 
 # Upload a video to nostrmedia.com
-./nosvid nostrmedia VIDEO_ID --output-dir ./downloads
+./nosvid nostrmedia VIDEO_ID
 ```
 
 ### Sync Metadata
@@ -70,11 +103,11 @@ NosVid provides a simple command-line interface with four main commands:
 To sync metadata for all videos without downloading the actual video files:
 
 ```bash
-./nosvid sync --output-dir ./downloads
+./nosvid sync
 ```
 
 Options:
-- `--output-dir`: Base directory for downloads (default: ~/Downloads/nosvid)
+- `--output-dir`: Base directory for downloads (default: ./repository)
 - `--max-videos`: Maximum number of videos to sync (None for all)
 - `--delay`: Delay between operations in seconds (default: 5)
 
@@ -83,11 +116,11 @@ Options:
 To list all videos in the repository:
 
 ```bash
-./nosvid list --output-dir ./downloads
+./nosvid list
 ```
 
 Options:
-- `--output-dir`: Base directory for downloads (default: ~/Downloads/nosvid)
+- `--output-dir`: Base directory for downloads (default: ./repository)
 - `--downloaded`: Show only downloaded videos
 - `--not-downloaded`: Show only videos that have not been downloaded
 
@@ -96,17 +129,17 @@ Options:
 To download a specific video by ID:
 
 ```bash
-./nosvid download VIDEO_ID --output-dir ./downloads
+./nosvid download VIDEO_ID
 ```
 
 To download all videos that have not been downloaded yet:
 
 ```bash
-./nosvid download --output-dir ./downloads
+./nosvid download
 ```
 
 Options:
-- `--output-dir`: Base directory for downloads (default: ~/Downloads/nosvid)
+- `--output-dir`: Base directory for downloads (default: ./repository)
 - `--quality`: Video quality (default: best)
 - `--delay`: Delay between downloads in seconds (default: 5)
 
@@ -115,42 +148,56 @@ Options:
 To upload a video to nostrmedia.com:
 
 ```bash
-./nosvid nostrmedia VIDEO_ID --output-dir ./downloads
+./nosvid nostrmedia VIDEO_ID
 ```
 
 You can also provide a private key for signing the upload:
 
 ```bash
-./nosvid nostrmedia VIDEO_ID --private-key YOUR_PRIVATE_KEY --output-dir ./downloads
+./nosvid nostrmedia VIDEO_ID --private-key YOUR_PRIVATE_KEY
 ```
 
-The private key can be in hex format or nsec format (bech32-encoded). If not provided, a new key will be generated.
+The private key can be in hex format or nsec format (bech32-encoded). If not provided, it will try to use the one from your `config.yaml` file. If no key is found in the config, a new one will be generated.
 
 Options:
-- `--output-dir`: Base directory for downloads (default: ~/Downloads/nosvid)
-- `--private-key`: Private key string (hex or nsec format, if not provided, a new key will be generated)
+- `--output-dir`: Base directory for downloads (default: ./repository)
+- `--private-key`: Private key string (hex or nsec format, if not provided, will use from config or generate a new one)
 
 ## Repository Structure
 
 The downloaded videos are organized as follows:
 
 ```
-downloads/
+repository/
 └── Channel_Name/
     ├── metadata/
     │   ├── channel_info.json
-    │   └── download_history.json
+    │   └── sync_history.json
     └── videos/
         ├── video_id1/
-        │   ├── Title1.mp4
-        │   ├── Title1.info.json
-        │   ├── Title1.jpg
-        │   ├── Title1.description
-        │   └── metadata.json
+        │   ├── metadata.json (main metadata with references to all platforms)
+        │   ├── youtube/
+        │   │   ├── Title1.mp4
+        │   │   ├── Title1.info.json
+        │   │   ├── Title1.jpg
+        │   │   ├── Title1.description
+        │   │   └── metadata.json (YouTube-specific metadata)
+        │   └── nostrmedia/
+        │       └── metadata.json (Nostrmedia-specific metadata)
         └── video_id2/
-            ├── Title2.mp4
-            ├── Title2.info.json
-            └── ...
+            ├── metadata.json
+            ├── youtube/
+            │   └── ...
+            └── nostrmedia/
+                └── ...
+```
+
+### Migration
+
+If you have an existing repository with the old structure, you can migrate it to the new structure using the provided migration script:
+
+```bash
+python migrate_repository.py /path/to/Channel_Name
 ```
 
 ## Syncing to a Repository

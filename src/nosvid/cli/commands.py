@@ -7,8 +7,8 @@ import sys
 import os
 from datetime import datetime
 
-from ..utils.config import read_api_key_from_yaml, get_default_output_dir
-from ..utils.filesystem import setup_directory_structure, load_json_file, save_json_file
+from ..utils.config import read_api_key_from_yaml, get_default_output_dir, get_default_video_quality, get_default_download_delay
+from ..utils.filesystem import setup_directory_structure, load_json_file, save_json_file, get_platform_dir
 from ..utils.youtube_api import get_channel_info
 from ..metadata.sync import sync_metadata
 from ..metadata.list import list_videos, print_video_list
@@ -206,13 +206,18 @@ def nostrmedia_command(args):
             print(f"Error: Video directory not found for ID {args.video_id}")
             return 1
 
-        # Find video files in the directory
+        # Find video files in the youtube subdirectory
+        youtube_dir = os.path.join(video_dir, 'youtube')
+        if not os.path.exists(youtube_dir):
+            print(f"Error: YouTube directory not found for ID {args.video_id}")
+            return 1
+
         video_files = []
         for ext in ['.mp4', '.webm', '.mkv']:
-            video_files.extend([os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith(ext)])
+            video_files.extend([os.path.join(youtube_dir, f) for f in os.listdir(youtube_dir) if f.endswith(ext)])
 
         if not video_files:
-            print(f"Error: No video files found in {video_dir}")
+            print(f"Error: No video files found in {youtube_dir}")
             return 1
 
         # Use the first video file found
@@ -225,55 +230,43 @@ def nostrmedia_command(args):
         if result['success']:
             print(f"Video uploaded successfully to: {result['url']}")
 
-            # Update metadata to include the nostrmedia URL
-            metadata_file = os.path.join(video_dir, 'metadata.json')
-            if os.path.exists(metadata_file):
-                metadata = load_json_file(metadata_file)
-                metadata['nostrmedia_url'] = result['url']
-                metadata['nostrmedia_hash'] = result['hash']
-                metadata['nostrmedia_uploaded_at'] = datetime.now().isoformat()
-                save_json_file(metadata_file, metadata)
+            # Create platform-specific directory for nostrmedia
+            nostrmedia_dir = get_platform_dir(video_dir, 'nostrmedia')
+
+            # Create nostrmedia-specific metadata
+            nostrmedia_metadata = {
+                'url': result['url'],
+                'hash': result['hash'],
+                'uploaded_at': datetime.now().isoformat()
+            }
+
+            # Save nostrmedia-specific metadata
+            nostrmedia_metadata_file = os.path.join(nostrmedia_dir, 'metadata.json')
+            save_json_file(nostrmedia_metadata_file, nostrmedia_metadata)
+
+            # Update main metadata to include the nostrmedia platform
+            main_metadata_file = os.path.join(video_dir, 'metadata.json')
+            if os.path.exists(main_metadata_file):
+                main_metadata = load_json_file(main_metadata_file)
+
+                # Initialize platforms dict if it doesn't exist
+                if 'platforms' not in main_metadata:
+                    main_metadata['platforms'] = {}
+
+                # Add nostrmedia platform
+                main_metadata['platforms']['nostrmedia'] = {
+                    'url': result['url'],
+                    'hash': result['hash'],
+                    'uploaded_at': datetime.now().isoformat()
+                }
+
+                save_json_file(main_metadata_file, main_metadata)
                 print(f"Updated metadata with nostrmedia URL")
 
             return 0
         else:
             print(f"Error uploading video: {result['error']}")
             return 1
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return 1
-
-        # Download specific video or all pending videos
-        if args.video_id:
-            # Download specific video
-            success = download_video(
-                video_id=args.video_id,
-                videos_dir=dirs['videos_dir'],
-                quality=args.quality
-            )
-
-            if success:
-                print(f"Successfully downloaded video: {args.video_id}")
-                return 0
-            else:
-                print(f"Failed to download video: {args.video_id}")
-                return 1
-        else:
-            # Download all pending videos
-            result = download_all_pending(
-                videos_dir=dirs['videos_dir'],
-                quality=args.quality,
-                delay=args.delay
-            )
-
-            if result['successful'] > 0:
-                return 0
-            elif result['total'] == 0:
-                print("No videos to download.")
-                return 0
-            else:
-                print("All downloads failed.")
-                return 1
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1
@@ -317,7 +310,7 @@ def main():
     sync_parser.add_argument(
         '--delay',
         type=int,
-        default=5,
+        default=get_default_download_delay(),
         help='Delay between operations in seconds'
     )
 
@@ -351,13 +344,13 @@ def main():
     download_parser.add_argument(
         '--quality',
         type=str,
-        default='best',
+        default=get_default_video_quality(),
         help='Video quality (e.g., best, 720p, etc.)'
     )
     download_parser.add_argument(
         '--delay',
         type=int,
-        default=5,
+        default=get_default_download_delay(),
         help='Delay between downloads in seconds'
     )
 
@@ -374,7 +367,7 @@ def main():
     nostrmedia_parser.add_argument(
         '--private-key',
         type=str,
-        help='Private key string (hex or nsec format, if not provided, a new key will be generated)'
+        help='Private key string (hex or nsec format, if not provided, will use from config or generate a new one)'
     )
 
     # Parse arguments

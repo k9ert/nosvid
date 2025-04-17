@@ -12,6 +12,7 @@ from ..utils.filesystem import (
     load_json_file,
     save_json_file,
     get_video_dir,
+    get_platform_dir,
     create_safe_filename
 )
 from ..utils.youtube_api import get_channel_info, get_all_videos_from_channel
@@ -59,9 +60,12 @@ def fetch_video_metadata(video, videos_dir):
     video_dir = get_video_dir(videos_dir, video_id)
     os.makedirs(video_dir, exist_ok=True)
 
+    # Create platform-specific directory for YouTube
+    youtube_dir = get_platform_dir(video_dir, 'youtube')
+
     # Create a safe filename from the title
     safe_title = create_safe_filename(title)
-    output_template = os.path.join(video_dir, f"{safe_title}")
+    output_template = os.path.join(youtube_dir, f"{safe_title}")
 
     print(f"Fetching metadata for: {title} ({video_id})")
 
@@ -86,8 +90,8 @@ def fetch_video_metadata(video, videos_dir):
         if result.returncode == 0:
             print(f"Successfully fetched metadata for: {title}")
 
-            # Create a simple metadata.json file with basic info
-            basic_metadata = {
+            # Create a YouTube-specific metadata.json file
+            youtube_metadata = {
                 'title': title,
                 'video_id': video_id,
                 'url': video_url,
@@ -96,8 +100,27 @@ def fetch_video_metadata(video, videos_dir):
                 'downloaded': False
             }
 
-            metadata_file = os.path.join(video_dir, 'metadata.json')
-            save_json_file(metadata_file, basic_metadata)
+            # Save YouTube-specific metadata
+            youtube_metadata_file = os.path.join(youtube_dir, 'metadata.json')
+            save_json_file(youtube_metadata_file, youtube_metadata)
+
+            # Create main metadata.json file with references to all platforms
+            main_metadata = {
+                'title': title,
+                'video_id': video_id,
+                'published_at': video['published_at'],
+                'synced_at': datetime.now().isoformat(),
+                'platforms': {
+                    'youtube': {
+                        'url': video_url,
+                        'downloaded': False
+                    }
+                }
+            }
+
+            # Save main metadata
+            main_metadata_file = os.path.join(video_dir, 'metadata.json')
+            save_json_file(main_metadata_file, main_metadata)
 
             return {
                 'success': True,

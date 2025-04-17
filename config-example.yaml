@@ -1,0 +1,18 @@
+# NosVid Configuration File
+
+# YouTube API Configuration
+youtube:
+  api_key: "YOUR_YOUTUBE_API_KEY_HERE"
+
+# Nostr Configuration
+nostr:
+  # Private key (hex or nsec format)
+  nsec: "YOUR_NSEC_HERE"
+  # Public key (hex or npub format)
+  npub: "YOUR_NPUB_HERE"
+
+# Default Settings
+defaults:
+  output_dir: "~/Downloads/nosvid"
+  video_quality: "best"
+  download_delay: 5

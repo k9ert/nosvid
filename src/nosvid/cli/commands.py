@@ -42,7 +42,8 @@ def sync_command(args):
             channel_title=channel_title,
             output_dir=args.output_dir,
             max_videos=args.max_videos,
-            delay=args.delay
+            delay=args.delay,
+            force_refresh=args.force_refresh
         )
 
         return 0
@@ -102,15 +103,17 @@ def list_command(args):
         if args.not_downloaded and not args.downloaded:
             show_downloaded = False
 
-        # List videos
-        videos = list_videos(
+        # List videos and get repository stats
+        videos, stats = list_videos(
             videos_dir=dirs['videos_dir'],
+            metadata_dir=dirs['metadata_dir'],
+            channel_id=channel_id,
             show_downloaded=show_downloaded,
             show_not_downloaded=show_not_downloaded
         )
 
-        # Print the list
-        print_video_list(videos)
+        # Print the list with repository status summary
+        print_video_list(videos, stats)
 
         return 0
     except Exception as e:
@@ -312,6 +315,11 @@ def main():
         type=int,
         default=get_default_download_delay(),
         help='Delay between operations in seconds'
+    )
+    sync_parser.add_argument(
+        '--force-refresh',
+        action='store_true',
+        help='Force refresh from YouTube API even if cache is fresh'
     )
 
     # Create the parser for the "list" command

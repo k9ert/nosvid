@@ -5,6 +5,8 @@ Metadata synchronization for nosvid
 import os
 import subprocess
 import time
+import json
+import glob
 from datetime import datetime
 
 from ..utils.filesystem import (
@@ -90,6 +92,18 @@ def fetch_video_metadata(video, videos_dir):
         if result.returncode == 0:
             print(f"Successfully fetched metadata for: {title}")
 
+            # Try to extract duration from info.json file
+            duration = 0
+            info_files = glob.glob(os.path.join(youtube_dir, "*.info.json"))
+            if info_files:
+                try:
+                    with open(info_files[0], 'r', encoding='utf-8') as f:
+                        info_data = json.load(f)
+                        if 'duration' in info_data:
+                            duration = info_data['duration']
+                except Exception as e:
+                    print(f"Error reading info file for duration: {e}")
+
             # Create a YouTube-specific metadata.json file
             youtube_metadata = {
                 'title': title,
@@ -97,7 +111,8 @@ def fetch_video_metadata(video, videos_dir):
                 'url': video_url,
                 'published_at': video['published_at'],
                 'synced_at': datetime.now().isoformat(),
-                'downloaded': False
+                'downloaded': False,
+                'duration': duration
             }
 
             # Save YouTube-specific metadata
@@ -109,6 +124,7 @@ def fetch_video_metadata(video, videos_dir):
                 'title': title,
                 'video_id': video_id,
                 'published_at': video['published_at'],
+                'duration': duration,  # Add duration field
                 'synced_at': datetime.now().isoformat(),
                 'platforms': {
                     'youtube': {
@@ -145,7 +161,7 @@ def fetch_video_metadata(video, videos_dir):
             'error': str(e)
         }
 
-def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=None, delay=5):
+def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=None, delay=5, force_refresh=False):
     """
     Sync metadata for all videos in a channel
 
@@ -156,6 +172,7 @@ def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=Non
         output_dir: Base directory for downloads
         max_videos: Maximum number of videos to sync (None for all)
         delay: Delay between operations in seconds
+        force_refresh: Force refresh from API even if cache is fresh
 
     Returns:
         Dictionary with sync results
@@ -186,36 +203,47 @@ def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=Non
     # Load sync history
     sync_history = load_sync_history(dirs['metadata_dir'])
 
-    # Get videos from channel
+    # Get videos from channel (using cache if available and not forced to refresh)
     print(f"Getting videos from channel ID: {channel_id}")
-    videos = get_all_videos_from_channel(api_key, channel_id, max_pages=None)
+    videos = get_all_videos_from_channel(
+        api_key=api_key,
+        channel_id=channel_id,
+        metadata_dir=dirs['metadata_dir'],
+        force_refresh=force_refresh,
+        max_pages=None
+    )
 
     print(f"Found {len(videos)} videos")
 
     # Sort videos by published date (newest first)
     videos.sort(key=lambda x: x['published_at'], reverse=True)
 
-    # Limit number of videos if specified
+    # Filter out videos that are already synced
+    new_videos = []
+    already_synced = 0
+
+    for video in videos:
+        video_id = video['video_id']
+        if video_id in sync_history and sync_history[video_id].get('success'):
+            already_synced += 1
+        else:
+            new_videos.append(video)
+
+    print(f"Found {len(new_videos)} new videos (already synced: {already_synced})")
+
+    # Limit number of new videos if specified
     if max_videos and max_videos > 0:
-        videos = videos[:max_videos]
-        print(f"Limited to {len(videos)} videos")
-    elif max_videos == 0:
-        print(f"Processing all {len(videos)} videos")
+        if len(new_videos) > max_videos:
+            new_videos = new_videos[:max_videos]
+            print(f"Limited to {len(new_videos)} new videos")
 
     # Fetch metadata for each video
     successful = 0
     failed = 0
 
-    for i, video in enumerate(videos, 1):
+    for i, video in enumerate(new_videos, 1):
         video_id = video['video_id']
-
-        # Skip if already synced successfully
-        if video_id in sync_history and sync_history[video_id].get('success'):
-            print(f"Skipping already synced video: {video['title']} ({video_id})")
-            successful += 1
-            continue
-
-        print(f"\nProcessing video {i}/{len(videos)}")
+        print(f"\nProcessing video {i}/{len(new_videos)}")
 
         # Fetch metadata
         result = fetch_video_metadata(video, dirs['videos_dir'])
@@ -241,18 +269,21 @@ def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=Non
         save_sync_history(dirs['metadata_dir'], sync_history)
 
         # Add delay between operations
-        if i < len(videos):
+        if i < len(new_videos):
             print(f"Waiting {delay} seconds before next operation...")
             time.sleep(delay)
 
     print("\nMetadata sync completed!")
     print(f"Successfully synced: {successful}")
     print(f"Failed: {failed}")
+    print(f"Already synced: {already_synced}")
 
     return {
         'total': len(videos),
+        'new_videos': len(new_videos),
         'successful': successful,
         'failed': failed,
+        'already_synced': already_synced,
         'channel_title': channel_title,
         'output_dir': output_dir
     }

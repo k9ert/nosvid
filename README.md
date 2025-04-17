@@ -108,8 +108,27 @@ To sync metadata for all videos without downloading the actual video files:
 
 Options:
 - `--output-dir`: Base directory for downloads (default: ./repository)
-- `--max-videos`: Maximum number of videos to sync (None for all)
+- `--max-videos`: Maximum number of videos to sync (default: 5, use 0 for all)
 - `--delay`: Delay between operations in seconds (default: 5)
+- `--force-refresh`: Force refresh from YouTube API even if cache is fresh
+
+#### YouTube API Caching
+
+To minimize YouTube API quota usage, the tool caches the channel video list for 24 hours. When you run the sync command, it will:
+
+1. Check if a cached video list exists for the channel
+2. If the cache exists and is less than 24 hours old, use it instead of calling the YouTube API
+3. If the cache is older than 24 hours or doesn't exist, fetch the video list from the YouTube API
+4. If you want to force a refresh from the API regardless of cache age, use the `--force-refresh` flag
+
+#### Efficient Video Processing
+
+The sync command processes videos efficiently:
+
+1. It filters out videos that are already synced
+2. It only processes new videos up to the specified `--max-videos` limit
+3. Each time you run the command with a limit, it will process the next batch of new videos
+4. This ensures you can gradually sync all videos without hitting API quotas
 
 ### List Videos
 
@@ -117,6 +136,36 @@ To list all videos in the repository:
 
 ```bash
 ./nosvid list
+```
+
+The list command shows a comprehensive repository status summary at the beginning, including:
+
+1. The total number of videos in the cache
+2. The number of videos with metadata (and percentage)
+3. The number of downloaded videos (and percentage)
+4. The number of videos uploaded to Nostrmedia (and percentage)
+
+Followed by the list of videos with their status in the format:
+
+```
+[YT:✓|NM: ] VIDEO_ID (DATE) DURATION - TITLE
+```
+
+For example:
+
+```
+Repository Status:
+------------------------------------------------------------
+Videos in cache (YT):     434
+Metadata (YT):              17 / 434 (3.9%)
+Downloaded (YT):             1 / 434 (0.2%)
+Uploaded (NM):               0 / 434 (0.0%)
+------------------------------------------------------------
+
+Found 17 videos:
+----------------------------------------------------------------------------------------------------
+  1. [YT: |NM: ] RvZJnzslz3k (2025-04-17) 65.1 min - 🔴 Einundzwanzig Live #17 - ACHTUNG: MASSIVE PREMIUMTURBO BITCOIN CANDLE
+  2. [YT:✓|NM: ] Eqn5l8S3WXw (2025-04-16) 9.9 min - Bitcoin Seedphrase | Das musst du wissen
 ```
 
 Options:
@@ -199,6 +248,19 @@ If you have an existing repository with the old structure, you can migrate it to
 ```bash
 python migrate_repository.py /path/to/Channel_Name
 ```
+
+#### Duration Migration
+
+If you have videos that were synced before the duration feature was added, you can use the provided migration script to extract the duration from the info.json files and add it to the metadata.json files:
+
+```bash
+./migrate_duration.py --repository-dir ./repository
+```
+
+This script will:
+1. Find all video directories in the repository
+2. Extract the duration from the info.json files
+3. Update both the main metadata.json and the YouTube-specific metadata.json with the duration information
 
 ## Syncing to a Repository
 

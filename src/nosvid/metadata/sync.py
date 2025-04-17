@@ -161,7 +161,7 @@ def fetch_video_metadata(video, videos_dir):
             'error': str(e)
         }
 
-def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=None, delay=5, force_refresh=False):
+def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=None, delay=5, force_refresh=False, specific_video_id=None):
     """
     Sync metadata for all videos in a channel
 
@@ -218,16 +218,41 @@ def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=Non
     # Sort videos by published date (newest first)
     videos.sort(key=lambda x: x['published_at'], reverse=True)
 
-    # Filter out videos that are already synced
-    new_videos = []
-    already_synced = 0
+    # If a specific video ID is provided, only sync that video
+    if specific_video_id:
+        print(f"Looking for specific video ID: {specific_video_id}")
+        specific_video = None
+        for video in videos:
+            if video['video_id'] == specific_video_id:
+                specific_video = video
+                break
 
-    for video in videos:
-        video_id = video['video_id']
-        if video_id in sync_history and sync_history[video_id].get('success'):
-            already_synced += 1
+        if specific_video:
+            print(f"Found specific video: {specific_video['title']}")
+            new_videos = [specific_video]
+            already_synced = 0
         else:
-            new_videos.append(video)
+            print(f"Error: Could not find video with ID {specific_video_id}")
+            return {
+                'total': len(videos),
+                'new_videos': 0,
+                'successful': 0,
+                'failed': 0,
+                'already_synced': 0,
+                'channel_title': channel_title,
+                'output_dir': output_dir
+            }
+    else:
+        # Filter out videos that are already synced
+        new_videos = []
+        already_synced = 0
+
+        for video in videos:
+            video_id = video['video_id']
+            if video_id in sync_history and sync_history[video_id].get('success'):
+                already_synced += 1
+            else:
+                new_videos.append(video)
 
     print(f"Found {len(new_videos)} new videos (already synced: {already_synced})")
 

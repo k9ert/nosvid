@@ -40,12 +40,20 @@ pip install -e .
 youtube:
   api_key: "YOUR_YOUTUBE_API_KEY_HERE"
 
-# Nostr Configuration (optional, for nostrmedia upload functionality)
+# Nostr Configuration (optional, for nostrmedia and nostr functionality)
 nostr:
   # Private key (hex or nsec format)
   nsec: "YOUR_NSEC_HERE"
   # Public key (hex or npub format)
   npub: "YOUR_NPUB_HERE"
+  # Relays to use for publishing (optional, defaults will be used if not specified)
+  # relays:
+  #   - "wss://relay.damus.io"
+  #   - "wss://nos.lol"
+  #   - "wss://nostr.wine"
+  #   - "wss://relay.nostr.band"
+  #   - "wss://relay.snort.social"
+  #   - "wss://relay.nostrudel.ninja"
 
 # Default Settings
 defaults:
@@ -56,10 +64,10 @@ defaults:
 
 ### Optional Features
 
-For nostrmedia upload functionality, install with the nostrmedia extra:
+For nostrmedia and nostr functionality, install with the nostr extra:
 
 ```bash
-pip install -e .[nostrmedia]
+pip install -e .[nostr]
 ```
 
 For development (includes testing tools), install with the dev extra:
@@ -68,7 +76,7 @@ For development (includes testing tools), install with the dev extra:
 pip install -e .[dev]
 ```
 
-Note: The nostr-sdk package is used for nostrmedia upload functionality. If you encounter issues installing it, you can still use the rest of the functionality without it.
+Note: The nostr-sdk package is used for nostrmedia and nostr functionality. If you encounter issues installing it, you can still use the rest of the functionality without it.
 
 ## Usage
 
@@ -78,6 +86,7 @@ NosVid provides a simple command-line interface with four main commands:
 - `list`: List videos in the repository
 - `download`: Download videos
 - `nostrmedia`: Upload videos to nostrmedia.com
+- `nostr`: Publish videos to the Nostr network
 
 ### Quick Start
 
@@ -96,6 +105,9 @@ nosvid download
 
 # Upload a video to nostrmedia.com
 nosvid nostrmedia VIDEO_ID
+
+# Publish a video to the Nostr network
+nosvid nostr VIDEO_ID
 ```
 
 ### Sync Metadata
@@ -104,6 +116,12 @@ To sync metadata for all videos without downloading the actual video files:
 
 ```bash
 nosvid sync
+```
+
+To sync metadata for a specific video:
+
+```bash
+nosvid sync VIDEO_ID
 ```
 
 Options:
@@ -208,9 +226,64 @@ You can also provide a private key for signing the upload:
 
 The private key can be in hex format or nsec format (bech32-encoded). If not provided, it will try to use the one from your `config.yaml` file. If no key is found in the config, a new one will be generated.
 
+#### Automatic Backtracking
+
+The `nostrmedia` command includes automatic backtracking functionality:
+
+1. If the video hasn't been downloaded yet, it will automatically download it first
+2. If the video metadata hasn't been synced yet, it will automatically sync it first
+
+This means you can simply run:
+
+```bash
+nosvid nostrmedia VIDEO_ID
+```
+
+And the tool will handle all the necessary steps to upload the video to nostrmedia.com, even if you haven't synced or downloaded the video yet.
+
 Options:
 - `--output-dir`: Base directory for downloads (default: ./repository)
 - `--private-key`: Private key string (hex or nsec format, if not provided, will use from config or generate a new one)
+- `--debug`: Enable debug output for detailed information about the upload process
+
+### Publish to Nostr
+
+To publish a video to the Nostr network:
+
+```bash
+nosvid nostr VIDEO_ID
+```
+
+This command creates a Nostr note with the video metadata and embeds the video. If the video has already been uploaded to nostrmedia.com, it will use the nostrmedia URL for embedding. Otherwise, it will use the YouTube URL.
+
+#### Automatic Backtracking
+
+The `nostr` command includes automatic backtracking functionality:
+
+1. If the video hasn't been uploaded to nostrmedia yet, it will automatically upload it first
+2. If the video hasn't been downloaded yet, it will automatically download it first
+3. If the video metadata hasn't been synced yet, it will automatically sync it first
+
+This means you can simply run:
+
+```bash
+nosvid nostr VIDEO_ID
+```
+
+And the tool will handle all the necessary steps to publish the video to Nostr, even if you haven't synced, downloaded, or uploaded the video yet.
+
+You can also provide a private key for signing the note:
+
+```bash
+./nosvid nostr VIDEO_ID --private-key YOUR_PRIVATE_KEY
+```
+
+The private key can be in hex format or nsec format (bech32-encoded). If not provided, it will try to use the one from your `config.yaml` file.
+
+Options:
+- `--output-dir`: Base directory for downloads (default: ./repository)
+- `--private-key`: Private key string (hex or nsec format, if not provided, will use from config)
+- `--debug`: Enable debug output for detailed information about the publishing process
 
 ## Repository Structure
 
@@ -231,13 +304,17 @@ repository/
         │   │   ├── Title1.jpg
         │   │   ├── Title1.description
         │   │   └── metadata.json (YouTube-specific metadata)
-        │   └── nostrmedia/
-        │       └── metadata.json (Nostrmedia-specific metadata)
+        │   ├── nostrmedia/
+        │   │   └── metadata.json (Nostrmedia-specific metadata)
+        │   └── nostr/
+        │       └── metadata.json (Nostr-specific metadata)
         └── video_id2/
             ├── metadata.json
             ├── youtube/
             │   └── ...
-            └── nostrmedia/
+            ├── nostrmedia/
+            │   └── ...
+            └── nostr/
                 └── ...
 ```
 

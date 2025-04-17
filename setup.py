@@ -15,6 +15,7 @@ INSTALL_REQUIRES = [
 # Optional dependencies
 EXTRAS_REQUIRE = {
     "nostrmedia": ["nostr-sdk>=0.41.0"],
+    "nostr": ["nostr-sdk>=0.41.0"],
     "dev": ["pytest", "black", "flake8"],
 }
 

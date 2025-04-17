@@ -46,10 +46,10 @@ venv\Scripts\activate
 pip install -e .
 ```
 
-For nostrmedia upload functionality, install with the nostrmedia extra:
+For nostrmedia and nostr functionality, install with the nostr extra:
 
 ```bash
-pip install -e .[nostrmedia]
+pip install -e .[nostr]
 ```
 
 For development, install with the dev extra:
@@ -69,12 +69,20 @@ Create a `config.yaml` file in the root directory with your configuration:
 youtube:
   api_key: "YOUR_YOUTUBE_API_KEY_HERE"
 
-# Nostr Configuration (optional, for nostrmedia upload functionality)
+# Nostr Configuration (optional, for nostrmedia and nostr functionality)
 nostr:
   # Private key (hex or nsec format)
   nsec: "YOUR_NSEC_HERE"
   # Public key (hex or npub format)
   npub: "YOUR_NPUB_HERE"
+  # Relays to use for publishing (optional, defaults will be used if not specified)
+  # relays:
+  #   - "wss://relay.damus.io"
+  #   - "wss://nos.lol"
+  #   - "wss://nostr.wine"
+  #   - "wss://relay.nostr.band"
+  #   - "wss://relay.snort.social"
+  #   - "wss://relay.nostrudel.ninja"
 
 # Default Settings
 defaults:
@@ -109,6 +117,9 @@ nosvid download
 
 # Upload a video to nostrmedia.com
 nosvid nostrmedia VIDEO_ID
+
+# Publish a video to the Nostr network
+nosvid nostr VIDEO_ID
 ```
 
 ## Deactivating the Virtual Environment
@@ -126,7 +137,7 @@ deactivate
 If you encounter errors about missing dependencies, try reinstalling with all extras:
 
 ```bash
-pip install -e .[nostrmedia,dev]
+pip install -e .[nostr,dev]
 ```
 
 ### Permission Issues
@@ -139,4 +150,4 @@ pip install --user -e .
 
 ### Nostr SDK Package Installation Issues
 
-The nostr-sdk package is used for nostrmedia upload functionality. If you encounter issues installing it, you can still use the rest of the functionality without it.
+The nostr-sdk package is used for nostrmedia and nostr functionality. If you encounter issues installing it, you can still use the rest of the functionality without it.

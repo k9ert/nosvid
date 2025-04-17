@@ -36,18 +36,41 @@ def sync_command(args):
         channel_title = get_channel_title(api_key, channel_id)
         print(f"Channel title: {channel_title}")
 
-        # Sync metadata
-        result = sync_metadata(
-            api_key=api_key,
-            channel_id=channel_id,
-            channel_title=channel_title,
-            output_dir=args.output_dir,
-            max_videos=args.max_videos,
-            delay=args.delay,
-            force_refresh=args.force_refresh
-        )
+        # Check if a specific video ID is provided
+        if hasattr(args, 'video_id') and args.video_id:
+            print(f"Syncing metadata for specific video: {args.video_id}")
+            # Sync metadata for a specific video
+            result = sync_metadata(
+                api_key=api_key,
+                channel_id=channel_id,
+                channel_title=channel_title,
+                output_dir=args.output_dir,
+                max_videos=1,
+                delay=args.delay,
+                force_refresh=args.force_refresh,
+                specific_video_id=args.video_id
+            )
+        else:
+            # Sync metadata for all videos
+            result = sync_metadata(
+                api_key=api_key,
+                channel_id=channel_id,
+                channel_title=channel_title,
+                output_dir=args.output_dir,
+                max_videos=args.max_videos,
+                delay=args.delay,
+                force_refresh=args.force_refresh
+            )
 
-        return 0
+        # Check the result
+        if result['successful'] > 0:
+            return 0
+        elif result['total'] == 0:
+            print("No videos to sync.")
+            return 0
+        else:
+            print("All syncs failed.")
+            return 1
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1
@@ -213,16 +236,50 @@ def nostrmedia_command(args):
         # Find video files in the youtube subdirectory
         youtube_dir = os.path.join(video_dir, 'youtube')
         if not os.path.exists(youtube_dir):
-            print(f"Error: YouTube directory not found for ID {args.video_id}")
-            return 1
+            print(f"YouTube directory not found for ID {args.video_id}")
+            print("Automatically downloading the video first...")
+
+            # Create a new args object with the same video_id
+            download_args = type('Args', (), {'video_id': args.video_id, 'output_dir': args.output_dir, 'quality': 'best'})
+
+            # Call download_command to download the video
+            download_result = download_command(download_args)
+
+            if download_result != 0:
+                print(f"Error: Failed to download video {args.video_id}")
+                return 1
+
+            # Check again if the directory exists after download
+            if not os.path.exists(youtube_dir):
+                print(f"Error: YouTube directory still not found after download for ID {args.video_id}")
+                return 1
 
         video_files = []
         for ext in ['.mp4', '.webm', '.mkv']:
             video_files.extend([os.path.join(youtube_dir, f) for f in os.listdir(youtube_dir) if f.endswith(ext)])
 
         if not video_files:
-            print(f"Error: No video files found in {youtube_dir}")
-            return 1
+            print(f"No video files found in {youtube_dir}")
+            print("Automatically downloading the video first...")
+
+            # Create a new args object with the same video_id
+            download_args = type('Args', (), {'video_id': args.video_id, 'output_dir': args.output_dir, 'quality': 'best'})
+
+            # Call download_command to download the video
+            download_result = download_command(download_args)
+
+            if download_result != 0:
+                print(f"Error: Failed to download video {args.video_id}")
+                return 1
+
+            # Check again for video files after download
+            video_files = []
+            for ext in ['.mp4', '.webm', '.mkv']:
+                video_files.extend([os.path.join(youtube_dir, f) for f in os.listdir(youtube_dir) if f.endswith(ext)])
+
+            if not video_files:
+                print(f"Error: No video files found in {youtube_dir} even after download")
+                return 1
 
         # Use the first video file found
         video_file = video_files[0]
@@ -304,31 +361,108 @@ def nostr_command(args):
         # Find the video directory
         video_dir = os.path.join(dirs['videos_dir'], args.video_id)
 
+        # If video directory doesn't exist, sync metadata first
         if not os.path.exists(video_dir):
-            print(f"Error: Video directory not found for ID {args.video_id}")
-            return 1
+            print(f"Video directory not found for ID {args.video_id}")
+            print("Automatically syncing metadata first...")
+
+            # Create a new args object for sync
+            sync_args = type('Args', (), {
+                'output_dir': args.output_dir,
+                'max_videos': 1,
+                'delay': 0,
+                'force_refresh': True,
+                'video_id': args.video_id
+            })
+
+            # Call sync_command to get metadata
+            sync_result = sync_command(sync_args)
+
+            if sync_result != 0:
+                print(f"Error: Failed to sync metadata for video {args.video_id}")
+                return 1
+
+            # Check again if the directory exists after sync
+            if not os.path.exists(video_dir):
+                print(f"Error: Video directory still not found after sync for ID {args.video_id}")
+                return 1
 
         # Load the video metadata
         metadata_file = os.path.join(video_dir, 'metadata.json')
         if not os.path.exists(metadata_file):
-            print(f"Error: Metadata file not found for ID {args.video_id}")
-            return 1
+            print(f"Metadata file not found for ID {args.video_id}")
+            print("Automatically syncing metadata first...")
+
+            # Create a new args object for sync
+            sync_args = type('Args', (), {
+                'output_dir': args.output_dir,
+                'max_videos': 1,
+                'delay': 0,
+                'force_refresh': True,
+                'video_id': args.video_id
+            })
+
+            # Call sync_command to get metadata
+            sync_result = sync_command(sync_args)
+
+            if sync_result != 0:
+                print(f"Error: Failed to sync metadata for video {args.video_id}")
+                return 1
+
+            # Check again if the metadata file exists after sync
+            if not os.path.exists(metadata_file):
+                print(f"Error: Metadata file still not found after sync for ID {args.video_id}")
+                return 1
 
         metadata = load_json_file(metadata_file)
 
         # Find video files in the youtube subdirectory
         youtube_dir = os.path.join(video_dir, 'youtube')
         if not os.path.exists(youtube_dir):
-            print(f"Error: YouTube directory not found for ID {args.video_id}")
-            return 1
+            print(f"YouTube directory not found for ID {args.video_id}")
+            print("Automatically downloading the video first...")
+
+            # Create a new args object with the same video_id
+            download_args = type('Args', (), {'video_id': args.video_id, 'output_dir': args.output_dir, 'quality': 'best'})
+
+            # Call download_command to download the video
+            download_result = download_command(download_args)
+
+            if download_result != 0:
+                print(f"Error: Failed to download video {args.video_id}")
+                return 1
+
+            # Check again if the directory exists after download
+            if not os.path.exists(youtube_dir):
+                print(f"Error: YouTube directory still not found after download for ID {args.video_id}")
+                return 1
 
         video_files = []
         for ext in ['.mp4', '.webm', '.mkv']:
             video_files.extend([os.path.join(youtube_dir, f) for f in os.listdir(youtube_dir) if f.endswith(ext)])
 
         if not video_files:
-            print(f"Error: No video files found in {youtube_dir}")
-            return 1
+            print(f"No video files found in {youtube_dir}")
+            print("Automatically downloading the video first...")
+
+            # Create a new args object with the same video_id
+            download_args = type('Args', (), {'video_id': args.video_id, 'output_dir': args.output_dir, 'quality': 'best'})
+
+            # Call download_command to download the video
+            download_result = download_command(download_args)
+
+            if download_result != 0:
+                print(f"Error: Failed to download video {args.video_id}")
+                return 1
+
+            # Check again for video files after download
+            video_files = []
+            for ext in ['.mp4', '.webm', '.mkv']:
+                video_files.extend([os.path.join(youtube_dir, f) for f in os.listdir(youtube_dir) if f.endswith(ext)])
+
+            if not video_files:
+                print(f"Error: No video files found in {youtube_dir} even after download")
+                return 1
 
         # Use the first video file found
         video_file = video_files[0]
@@ -348,10 +482,25 @@ def nostr_command(args):
                 metadata['nostrmedia_url'] = nostrmedia_data['url']
                 print(f"Found nostrmedia URL: {metadata['nostrmedia_url']}")
 
-        # If not uploaded to nostrmedia yet, suggest to do so
+        # If not uploaded to nostrmedia yet, automatically upload it
         if 'nostrmedia_url' not in metadata:
             print("Note: This video has not been uploaded to nostrmedia yet.")
-            print(f"Consider running './nosvid nostrmedia {args.video_id}' first for better embedding.")
+            print(f"Automatically uploading to nostrmedia first...")
+
+            # Call nostrmedia_command with the same arguments
+            nostrmedia_result = nostrmedia_command(args)
+
+            if nostrmedia_result != 0:
+                print("Failed to upload to nostrmedia. Continuing with YouTube URL for embedding.")
+            else:
+                # Reload the metadata to get the nostrmedia URL
+                if os.path.exists(metadata_file):
+                    metadata = load_json_file(metadata_file)
+                    if 'platforms' in metadata and 'nostrmedia' in metadata['platforms']:
+                        nostrmedia_data = metadata['platforms']['nostrmedia']
+                        if 'url' in nostrmedia_data:
+                            metadata['nostrmedia_url'] = nostrmedia_data['url']
+                            print(f"Successfully uploaded to nostrmedia: {metadata['nostrmedia_url']}")
 
         # Upload the video to Nostr
         result = upload_to_nostr(video_file, metadata, args.private_key, debug=args.debug)
@@ -436,6 +585,12 @@ def main():
     sync_parser = subparsers.add_parser(
         'sync',
         help='Sync metadata for all videos in a channel'
+    )
+    sync_parser.add_argument(
+        'video_id',
+        type=str,
+        nargs='?',
+        help='ID of the video to sync (if not specified, sync all videos)'
     )
     sync_parser.add_argument(
         '--max-videos',

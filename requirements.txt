@@ -1,8 +1,8 @@
-google-api-python-client==2.86.0
-google-auth==2.22.0
-google-auth-oauthlib==1.0.0
-google-auth-httplib2==0.1.0
-yt-dlp>=2025.3.31
-pyyaml==6.0.1
-requests>=2.25.0
-# Optional: nostr==0.0.2 (for nostrmedia upload functionality)
+# Install the package and its dependencies
+-e .
+
+# For nostrmedia upload functionality
+# -e .[nostrmedia]
+
+# For development
+# -e .[dev]

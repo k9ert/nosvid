@@ -12,19 +12,23 @@ A tool for downloading and managing YouTube videos, specifically designed for th
 
 ## Setup
 
-### Installation
+We recommend using a virtual environment for installing NosVid. For detailed setup instructions, see [SETUP.md](SETUP.md).
 
-1. Clone the repository:
+### Quick Installation
+
+1. Clone the repository and create a virtual environment:
 
 ```bash
 git clone https://github.com/yourusername/nosvid.git
 cd nosvid
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-2. Install the required dependencies:
+2. Install NosVid and its dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 3. Create a `config.yaml` file in the root directory with your configuration:
@@ -50,25 +54,21 @@ defaults:
   download_delay: 5
 ```
 
-Alternatively, you can still use a `youtube.key` file or `secrets.yaml` for backward compatibility.
+### Optional Features
 
-### Optional Dependencies
-
-For nostrmedia upload functionality, you'll need to install the nostr package:
+For nostrmedia upload functionality, install with the nostrmedia extra:
 
 ```bash
-pip install nostr
+pip install -e .[nostrmedia]
+```
+
+For development (includes testing tools), install with the dev extra:
+
+```bash
+pip install -e .[dev]
 ```
 
 Note: The nostr package requires additional system dependencies. If you encounter issues installing it, you can still use the rest of the functionality without it.
-
-### Development Installation
-
-For development, you can install the package in development mode:
-
-```bash
-pip install -e .
-```
 
 ## Usage
 
@@ -83,19 +83,19 @@ NosVid provides a simple command-line interface with four main commands:
 
 ```bash
 # Sync metadata for all videos
-./nosvid sync
+nosvid sync
 
 # List all videos
-./nosvid list
+nosvid list
 
 # Download a specific video
-./nosvid download VIDEO_ID
+nosvid download VIDEO_ID
 
 # Download all pending videos
-./nosvid download
+nosvid download
 
 # Upload a video to nostrmedia.com
-./nosvid nostrmedia VIDEO_ID
+nosvid nostrmedia VIDEO_ID
 ```
 
 ### Sync Metadata
@@ -103,7 +103,7 @@ NosVid provides a simple command-line interface with four main commands:
 To sync metadata for all videos without downloading the actual video files:
 
 ```bash
-./nosvid sync
+nosvid sync
 ```
 
 Options:
@@ -135,7 +135,7 @@ The sync command processes videos efficiently:
 To list all videos in the repository:
 
 ```bash
-./nosvid list
+nosvid list
 ```
 
 The list command shows a comprehensive repository status summary at the beginning, including:
@@ -178,13 +178,13 @@ Options:
 To download a specific video by ID:
 
 ```bash
-./nosvid download VIDEO_ID
+nosvid download VIDEO_ID
 ```
 
 To download all videos that have not been downloaded yet:
 
 ```bash
-./nosvid download
+nosvid download
 ```
 
 Options:
@@ -197,7 +197,7 @@ Options:
 To upload a video to nostrmedia.com:
 
 ```bash
-./nosvid nostrmedia VIDEO_ID
+nosvid nostrmedia VIDEO_ID
 ```
 
 You can also provide a private key for signing the upload:
@@ -254,7 +254,7 @@ python migrate_repository.py /path/to/Channel_Name
 If you have videos that were synced before the duration feature was added, you can use the provided migration script to extract the duration from the info.json files and add it to the metadata.json files:
 
 ```bash
-./migrate_duration.py --repository-dir ./repository
+python migrate_duration.py --repository-dir ./repository
 ```
 
 This script will:

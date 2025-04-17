@@ -185,12 +185,20 @@ The list command shows a comprehensive repository status summary at the beginnin
 2. The number of videos with metadata (and percentage)
 3. The number of downloaded videos (and percentage)
 4. The number of videos uploaded to Nostrmedia (and percentage)
+5. The number of videos posted to Nostr (and percentage)
+6. The number of videos with npubs (and percentage)
+7. The total number of npubs found
 
 The videos are listed in chronological order (oldest first) with their status in the format:
 
 ```
-[YT:✓|NM: ] VIDEO_ID (DATE) [ENGAGEMENT] DURATION - TITLE
+[YT:✓|NM:✓|NS:✓] VIDEO_ID (DATE) [ENGAGEMENT] DURATION - TITLE
 ```
+
+Where:
+- `YT`: YouTube download status (✓ if downloaded)
+- `NM`: Nostrmedia upload status (✓ if uploaded)
+- `NS`: Nostr post status (✓ if posted once, a number if posted multiple times)
 
 The engagement column shows an orange bar representing the number of npubs found in the video's chat and description files. The bar is capped at 10 npubs for display purposes.
 
@@ -227,21 +235,21 @@ To download a specific video by ID:
 nosvid download VIDEO_ID
 ```
 
-To download the oldest video that hasn't been downloaded yet:
-
-```bash
-nosvid download --oldest
-```
-
-To download all videos that have not been downloaded yet:
+To download the oldest video that hasn't been downloaded yet (default behavior):
 
 ```bash
 nosvid download
 ```
 
+To download all videos that have not been downloaded yet:
+
+```bash
+nosvid download --all-pending
+```
+
 Options:
 - `--output-dir`: Base directory for downloads (default: ./repository)
-- `--oldest`: Download the oldest video that hasn't been downloaded yet
+- `--all-pending`: Download all videos that haven't been downloaded yet
 - `--quality`: Video quality (default: best)
 - `--delay`: Delay between downloads in seconds (default: 5)
 
@@ -289,13 +297,15 @@ To publish a specific video to the Nostr network:
 nosvid nostr VIDEO_ID
 ```
 
-To publish the oldest video that hasn't been posted to Nostr yet:
+To publish the oldest video that hasn't been posted to Nostr yet (default behavior):
 
 ```bash
-nosvid nostr --oldest
+nosvid nostr
 ```
 
 This command creates a Nostr note with the video metadata and embeds the video. If the video has already been uploaded to nostrmedia.com, it will use the nostrmedia URL for embedding. Otherwise, it will use the YouTube URL.
+
+You can post the same video multiple times to Nostr. Each post is stored in a time-sorted array in the metadata, allowing you to track all posts for a video.
 
 #### Automatic Backtracking
 
@@ -323,7 +333,6 @@ The private key can be in hex format or nsec format (bech32-encoded). If not pro
 
 Options:
 - `--output-dir`: Base directory for downloads (default: ./repository)
-- `--oldest`: Upload the oldest video that hasn't been posted to Nostr yet
 - `--private-key`: Private key string (hex or nsec format, if not provided, will use from config)
 - `--debug`: Enable debug output for detailed information about the publishing process
 

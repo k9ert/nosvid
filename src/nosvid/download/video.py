@@ -123,7 +123,7 @@ def download_all_pending(videos_dir, quality='best', delay=5):
     from ..metadata.list import list_videos
     import time
 
-    videos = list_videos(videos_dir, show_downloaded=False, show_not_downloaded=True)
+    videos, _ = list_videos(videos_dir, show_downloaded=False, show_not_downloaded=True)
 
     if not videos:
         print("No videos to download.")

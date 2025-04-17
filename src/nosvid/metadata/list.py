@@ -94,6 +94,29 @@ def generate_metadata_from_files(video_dir, video_id):
                 'uploaded_at': nostrmedia_metadata.get('uploaded_at', '')
             }
 
+    # Check for nostr platform
+    nostr_dir = os.path.join(video_dir, 'nostr')
+    if os.path.exists(nostr_dir):
+        nostr_metadata_file = os.path.join(nostr_dir, 'metadata.json')
+        if os.path.exists(nostr_metadata_file):
+            nostr_metadata = load_json_file(nostr_metadata_file)
+
+            # Initialize nostr platform with posts array
+            main_metadata['platforms']['nostr'] = {
+                'posts': []
+            }
+
+            # Add the post from the metadata file
+            if 'event_id' in nostr_metadata:
+                post_entry = {
+                    'event_id': nostr_metadata.get('event_id', ''),
+                    'pubkey': nostr_metadata.get('pubkey', ''),
+                    'nostr_uri': nostr_metadata.get('nostr_uri', ''),
+                    'links': nostr_metadata.get('links', {}),
+                    'uploaded_at': nostr_metadata.get('uploaded_at', datetime.now().isoformat())
+                }
+                main_metadata['platforms']['nostr']['posts'].append(post_entry)
+
     # Save the main metadata file
     main_metadata_file = os.path.join(video_dir, 'metadata.json')
     save_json_file(main_metadata_file, main_metadata)
@@ -124,6 +147,7 @@ def list_videos(videos_dir, metadata_dir=None, channel_id=None, show_downloaded=
         'total_with_metadata': 0,
         'total_downloaded': 0,
         'total_uploaded_nm': 0,
+        'total_posted_nostr': 0,
         'total_with_npubs': 0,
         'total_npubs': 0
     }
@@ -181,6 +205,21 @@ def list_videos(videos_dir, metadata_dir=None, channel_id=None, show_downloaded=
             if nostrmedia_url:
                 stats['total_uploaded_nm'] += 1
 
+        # Check if nostr platform exists and count posts
+        nostr_post_count = 0
+        if 'platforms' in main_metadata and 'nostr' in main_metadata['platforms']:
+            nostr_data = main_metadata['platforms']['nostr']
+            # Check for posts array (new format)
+            if 'posts' in nostr_data:
+                nostr_post_count = len(nostr_data['posts'])
+            # Check for event_id (old format)
+            elif 'event_id' in nostr_data:
+                nostr_post_count = 1
+
+            # Update stats if posts were found
+            if nostr_post_count > 0:
+                stats['total_posted_nostr'] = stats.get('total_posted_nostr', 0) + 1
+
         # Count npubs if they exist in metadata
         npub_count = 0
         if 'npubs' in main_metadata:
@@ -204,6 +243,7 @@ def list_videos(videos_dir, metadata_dir=None, channel_id=None, show_downloaded=
             'downloaded': youtube_downloaded,
             'url': main_metadata.get('platforms', {}).get('youtube', {}).get('url', ''),
             'nostrmedia_url': nostrmedia_url,
+            'nostr_post_count': nostr_post_count,  # Add nostr post count
             'npub_count': npub_count  # Add npub count
         })
 
@@ -230,6 +270,7 @@ def print_video_list(videos, stats=None, show_index=True):
         total_with_metadata = stats.get('total_with_metadata', 0)
         total_downloaded = stats.get('total_downloaded', 0)
         total_uploaded_nm = stats.get('total_uploaded_nm', 0)
+        total_posted_nostr = stats.get('total_posted_nostr', 0)
         total_with_npubs = stats.get('total_with_npubs', 0)
         total_npubs = stats.get('total_npubs', 0)
 
@@ -237,12 +278,14 @@ def print_video_list(videos, stats=None, show_index=True):
         metadata_percent = (total_with_metadata / total_in_cache * 100) if total_in_cache > 0 else 0
         downloaded_percent = (total_downloaded / total_in_cache * 100) if total_in_cache > 0 else 0
         uploaded_nm_percent = (total_uploaded_nm / total_in_cache * 100) if total_in_cache > 0 else 0
+        posted_nostr_percent = (total_posted_nostr / total_in_cache * 100) if total_in_cache > 0 else 0
         npubs_percent = (total_with_npubs / total_in_cache * 100) if total_in_cache > 0 else 0
 
         print(f"Videos in cache (YT):     {total_in_cache}")
         print(f"Metadata (YT):            {total_with_metadata:4d} / {total_in_cache} ({metadata_percent:.1f}%)")
         print(f"Downloaded (YT):          {total_downloaded:4d} / {total_in_cache} ({downloaded_percent:.1f}%)")
         print(f"Uploaded (NM):            {total_uploaded_nm:4d} / {total_in_cache} ({uploaded_nm_percent:.1f}%)")
+        print(f"Posted (NS):              {total_posted_nostr:4d} / {total_in_cache} ({posted_nostr_percent:.1f}%)")
         print(f"Videos with npubs:        {total_with_npubs:4d} / {total_in_cache} ({npubs_percent:.1f}%)")
         print(f"Total npubs found:        {total_npubs}")
         print("-" * 60)
@@ -257,6 +300,15 @@ def print_video_list(videos, stats=None, show_index=True):
     for i, video in enumerate(videos, 1):
         yt_status = "✓" if video['downloaded'] else " "
         nm_status = "✓" if video.get('nostrmedia_url') else " "
+
+        # Format the Nostr post status
+        nostr_post_count = video.get('nostr_post_count', 0)
+        if nostr_post_count == 0:
+            ns_status = " "
+        elif nostr_post_count == 1:
+            ns_status = "✓"
+        else:
+            ns_status = str(nostr_post_count)
 
         # Format the date
         published = video.get('published_at', '')[:10] if video.get('published_at') else 'Unknown'
@@ -276,8 +328,8 @@ def print_video_list(videos, stats=None, show_index=True):
 
         # Format the output
         if show_index:
-            print(f"{i:3d}. [YT:{yt_status}|NM:{nm_status}] {video['video_id']} ({published}) {engagement_bar} {duration_str} - {video['title']}")
+            print(f"{i:3d}. [YT:{yt_status}|NM:{nm_status}|NS:{ns_status}] {video['video_id']} ({published}) {engagement_bar} {duration_str} - {video['title']}")
         else:
-            print(f"[YT:{yt_status}|NM:{nm_status}] {video['video_id']} ({published}) {engagement_bar} {duration_str} - {video['title']}")
+            print(f"[YT:{yt_status}|NM:{nm_status}|NS:{ns_status}] {video['video_id']} ({published}) {engagement_bar} {duration_str} - {video['title']}")
 
     print("-" * 100)

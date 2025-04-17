@@ -2,8 +2,7 @@
 Utility functions for finding the oldest video that meets a specific condition
 """
 
-import os
-from typing import Dict, Any, List, Optional, Callable
+from typing import Dict, Any, Optional, Callable
 
 from ..metadata.list import list_videos
 
@@ -60,7 +59,13 @@ def find_oldest_not_posted(videos_dir: str) -> Optional[Dict[str, Any]]:
         # Check if the video has been posted to Nostr
         has_nostr = False
         if 'platforms' in video and 'nostr' in video.get('platforms', {}):
-            has_nostr = True
+            # Check if there are any posts in the nostr platform
+            nostr_data = video['platforms']['nostr']
+            if 'posts' in nostr_data and len(nostr_data['posts']) > 0:
+                has_nostr = True
+            # For backward compatibility with old metadata format
+            elif 'event_id' in nostr_data:
+                has_nostr = True
 
         # Return True if the video has been downloaded but not posted to Nostr
         # We don't require nostrmedia URL since the nostr command will handle that automatically

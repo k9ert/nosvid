@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NosVid - Video Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .video-card {
+            margin-bottom: 20px;
+        }
+        .video-actions {
+            margin-top: 10px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-downloaded {
+            background-color: #28a745;
+        }
+        .status-not-downloaded {
+            background-color: #dc3545;
+        }
+        .status-uploaded {
+            background-color: #17a2b8;
+        }
+        .status-not-uploaded {
+            background-color: #ffc107;
+        }
+        .status-posted {
+            background-color: #6f42c1;
+        }
+        .status-not-posted {
+            background-color: #fd7e14;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">NosVid - Video Manager</h1>
+
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Statistics</h5>
+                        <p class="card-text">Total Videos: <span id="total-videos">0</span></p>
+                        <p class="card-text">Downloaded: <span id="downloaded-videos">0</span></p>
+                        <p class="card-text">Uploaded to Nostrmedia: <span id="uploaded-videos">0</span></p>
+                        <p class="card-text">Posted to Nostr: <span id="posted-videos">0</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Actions</h5>
+                        <button id="sync-button" class="btn btn-primary me-2">Sync Metadata</button>
+                        <button id="download-all-button" class="btn btn-success me-2">Download All Pending</button>
+                        <button id="upload-all-button" class="btn btn-info me-2">Upload All Pending</button>
+                        <button id="post-all-button" class="btn btn-warning">Post All Pending</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Filters</h5>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <select id="filter-status" class="form-select">
+                                    <option value="all">All Videos</option>
+                                    <option value="downloaded">Downloaded</option>
+                                    <option value="not-downloaded">Not Downloaded</option>
+                                    <option value="uploaded">Uploaded to Nostrmedia</option>
+                                    <option value="not-uploaded">Not Uploaded to Nostrmedia</option>
+                                    <option value="posted">Posted to Nostr</option>
+                                    <option value="not-posted">Not Posted to Nostr</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="sort-by" class="form-select">
+                                    <option value="published_at">Sort by Date</option>
+                                    <option value="title">Sort by Title</option>
+                                    <option value="duration">Sort by Duration</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="sort-order" class="form-select">
+                                    <option value="desc">Descending</option>
+                                    <option value="asc">Ascending</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button id="apply-filters-button" class="btn btn-primary w-100">Apply Filters</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="videos-container" class="row">
+            <!-- Videos will be loaded here -->
+            <div class="col-12 text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center" id="pagination">
+                        <!-- Pagination will be loaded here -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Template -->
+    <template id="video-template">
+        <div class="col-md-6 col-lg-4 video-card">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title video-title">Video Title</h5>
+                    <p class="card-text video-date">Published: <span></span></p>
+                    <p class="card-text video-duration">Duration: <span></span></p>
+                    <p class="card-text video-id">ID: <span></span></p>
+                    <div class="video-status">
+                        <p class="card-text">
+                            <span class="status-indicator status-downloaded"></span> Downloaded
+                        </p>
+                        <p class="card-text">
+                            <span class="status-indicator status-uploaded"></span> Uploaded to Nostrmedia
+                        </p>
+                        <p class="card-text">
+                            <span class="status-indicator status-posted"></span> Posted to Nostr
+                        </p>
+                    </div>
+                    <div class="video-actions">
+                        <button class="btn btn-sm btn-primary download-button">Download</button>
+                        <button class="btn btn-sm btn-info upload-button">Upload to Nostrmedia</button>
+                        <button class="btn btn-sm btn-warning post-button">Post to Nostr</button>
+                        <a href="#" class="btn btn-sm btn-secondary view-button" target="_blank">View on YouTube</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // API URL
+        const API_URL = '/api';
+
+        // Current page and limit
+        let currentPage = 1;
+        let limit = 12;
+        let totalVideos = 0;
+
+        // Current filters
+        let filterStatus = 'all';
+        let sortBy = 'published_at';
+        let sortOrder = 'desc';
+
+        // Load videos
+        function loadVideos() {
+            const videosContainer = document.getElementById('videos-container');
+            videosContainer.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+
+            const offset = (currentPage - 1) * limit;
+
+            console.log(`Fetching from: ${API_URL}/videos?limit=${limit}&offset=${offset}&sort_by=${sortBy}&sort_order=${sortOrder}`);
+            fetch(`${API_URL}/videos?limit=${limit}&offset=${offset}&sort_by=${sortBy}&sort_order=${sortOrder}`)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Received data:', data);
+                    videosContainer.innerHTML = '';
+
+                    totalVideos = data.total;
+                    document.getElementById('total-videos').textContent = totalVideos;
+
+                    let downloadedCount = 0;
+                    let uploadedCount = 0;
+                    let postedCount = 0;
+
+                    data.videos.forEach(video => {
+                        // Apply filters
+                        if (filterStatus !== 'all') {
+                            const isDownloaded = video.platforms && video.platforms.youtube && video.platforms.youtube.downloaded;
+                            const isUploaded = video.platforms && video.platforms.nostrmedia && video.platforms.nostrmedia.url;
+                            const isPosted = video.nostr_posts && video.nostr_posts.length > 0;
+
+                            if (filterStatus === 'downloaded' && !isDownloaded) return;
+                            if (filterStatus === 'not-downloaded' && isDownloaded) return;
+                            if (filterStatus === 'uploaded' && !isUploaded) return;
+                            if (filterStatus === 'not-uploaded' && isUploaded) return;
+                            if (filterStatus === 'posted' && !isPosted) return;
+                            if (filterStatus === 'not-posted' && isPosted) return;
+                        }
+
+                        // Create video card
+                        const template = document.getElementById('video-template');
+                        const clone = template.content.cloneNode(true);
+
+                        // Set video data
+                        clone.querySelector('.video-title').textContent = video.title;
+                        clone.querySelector('.video-date span').textContent = new Date(video.published_at).toLocaleDateString();
+                        clone.querySelector('.video-duration span').textContent = formatDuration(video.duration);
+                        clone.querySelector('.video-id span').textContent = video.video_id;
+
+                        // Set video status
+                        const isDownloaded = video.platforms && video.platforms.youtube && video.platforms.youtube.downloaded;
+                        const isUploaded = video.platforms && video.platforms.nostrmedia && video.platforms.nostrmedia.url;
+                        const isPosted = video.nostr_posts && video.nostr_posts.length > 0;
+
+                        // Get status elements
+                        const downloadedStatus = clone.querySelector('.status-indicator.status-downloaded');
+                        const downloadButton = clone.querySelector('.download-button');
+
+                        if (isDownloaded) {
+                            downloadedCount++;
+                            if (downloadedStatus) {
+                                downloadedStatus.classList.add('status-downloaded');
+                                downloadedStatus.classList.remove('status-not-downloaded');
+                            }
+                            if (downloadButton) {
+                                downloadButton.disabled = true;
+                                downloadButton.textContent = 'Downloaded';
+                            }
+                        } else {
+                            if (downloadedStatus) {
+                                downloadedStatus.classList.remove('status-downloaded');
+                                downloadedStatus.classList.add('status-not-downloaded');
+                            }
+                        }
+
+                        // Get status elements
+                        const uploadedStatus = clone.querySelector('.status-indicator.status-uploaded');
+                        const uploadButton = clone.querySelector('.upload-button');
+
+                        if (isUploaded) {
+                            uploadedCount++;
+                            if (uploadedStatus) {
+                                uploadedStatus.classList.add('status-uploaded');
+                                uploadedStatus.classList.remove('status-not-uploaded');
+                            }
+                            if (uploadButton) {
+                                uploadButton.disabled = true;
+                                uploadButton.textContent = 'Uploaded';
+                            }
+                        } else {
+                            if (uploadedStatus) {
+                                uploadedStatus.classList.remove('status-uploaded');
+                                uploadedStatus.classList.add('status-not-uploaded');
+                            }
+                        }
+
+                        // Get status elements
+                        const postedStatus = clone.querySelector('.status-indicator.status-posted');
+                        const postButton = clone.querySelector('.post-button');
+
+                        if (isPosted) {
+                            postedCount++;
+                            if (postedStatus) {
+                                postedStatus.classList.add('status-posted');
+                                postedStatus.classList.remove('status-not-posted');
+                            }
+                            if (postButton) {
+                                postButton.disabled = true;
+                                postButton.textContent = 'Posted';
+                            }
+                        } else {
+                            if (postedStatus) {
+                                postedStatus.classList.remove('status-posted');
+                                postedStatus.classList.add('status-not-posted');
+                            }
+                        }
+
+                        // Set video actions
+                        const downloadBtn = clone.querySelector('.download-button');
+                        const uploadBtn = clone.querySelector('.upload-button');
+                        const postBtn = clone.querySelector('.post-button');
+
+                        if (downloadBtn) {
+                            downloadBtn.addEventListener('click', () => downloadVideo(video.video_id));
+                        }
+
+                        if (uploadBtn) {
+                            uploadBtn.addEventListener('click', () => uploadVideo(video.video_id));
+                        }
+
+                        if (postBtn) {
+                            postBtn.addEventListener('click', () => postVideo(video.video_id));
+                        }
+
+                        // Set video links
+                        const viewButton = clone.querySelector('.view-button');
+                        if (viewButton) {
+                            if (video.platforms && video.platforms.youtube && video.platforms.youtube.url) {
+                                viewButton.href = video.platforms.youtube.url;
+                            } else {
+                                viewButton.href = `https://youtube.com/watch?v=${video.video_id}`;
+                            }
+                        }
+
+                        videosContainer.appendChild(clone);
+                    });
+
+                    // Update statistics
+                    document.getElementById('downloaded-videos').textContent = downloadedCount;
+                    document.getElementById('uploaded-videos').textContent = uploadedCount;
+                    document.getElementById('posted-videos').textContent = postedCount;
+
+                    // Update pagination
+                    updatePagination();
+                })
+                .catch(error => {
+                    console.error('Error loading videos:', error);
+                    console.error('Error details:', error.message, error.stack);
+                    videosContainer.innerHTML = `
+                        <div class="col-12 text-center">
+                            <div class="alert alert-danger" role="alert">
+                                Error loading videos: ${error.message}. Please try again.
+                            </div>
+                        </div>
+                    `;
+                });
+        }
+
+        // Update pagination
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            const totalPages = Math.ceil(totalVideos / limit);
+
+            // Previous button
+            const prevLi = document.createElement('li');
+            prevLi.classList.add('page-item');
+            if (currentPage === 1) {
+                prevLi.classList.add('disabled');
+            }
+            const prevLink = document.createElement('a');
+            prevLink.classList.add('page-link');
+            prevLink.href = '#';
+            prevLink.textContent = 'Previous';
+            prevLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadVideos();
+                }
+            });
+            prevLi.appendChild(prevLink);
+            pagination.appendChild(prevLi);
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                const pageLi = document.createElement('li');
+                pageLi.classList.add('page-item');
+                if (i === currentPage) {
+                    pageLi.classList.add('active');
+                }
+                const pageLink = document.createElement('a');
+                pageLink.classList.add('page-link');
+                pageLink.href = '#';
+                pageLink.textContent = i;
+                pageLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    currentPage = i;
+                    loadVideos();
+                });
+                pageLi.appendChild(pageLink);
+                pagination.appendChild(pageLi);
+            }
+
+            // Next button
+            const nextLi = document.createElement('li');
+            nextLi.classList.add('page-item');
+            if (currentPage === totalPages) {
+                nextLi.classList.add('disabled');
+            }
+            const nextLink = document.createElement('a');
+            nextLink.classList.add('page-link');
+            nextLink.href = '#';
+            nextLink.textContent = 'Next';
+            nextLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    loadVideos();
+                }
+            });
+            nextLi.appendChild(nextLink);
+            pagination.appendChild(nextLi);
+        }
+
+        // Format duration in seconds to MM:SS
+        function formatDuration(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        // Download a video
+        function downloadVideo(videoId) {
+            fetch(`${API_URL}/videos/${videoId}/download`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    quality: 'best'
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Video ${videoId} downloaded successfully!`);
+                        loadVideos();
+                    } else {
+                        alert(`Error downloading video: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error downloading video:', error);
+                    alert('Error downloading video. Please try again.');
+                });
+        }
+
+        // Upload a video to Nostrmedia
+        function uploadVideo(videoId) {
+            alert(`Upload to Nostrmedia not implemented yet for video ${videoId}`);
+        }
+
+        // Post a video to Nostr
+        function postVideo(videoId) {
+            alert(`Post to Nostr not implemented yet for video ${videoId}`);
+        }
+
+        // Event listeners
+        document.getElementById('apply-filters-button').addEventListener('click', () => {
+            filterStatus = document.getElementById('filter-status').value;
+            sortBy = document.getElementById('sort-by').value;
+            sortOrder = document.getElementById('sort-order').value;
+            currentPage = 1;
+            loadVideos();
+        });
+
+        document.getElementById('sync-button').addEventListener('click', () => {
+            alert('Sync metadata not implemented yet');
+        });
+
+        document.getElementById('download-all-button').addEventListener('click', () => {
+            alert('Download all pending not implemented yet');
+        });
+
+        document.getElementById('upload-all-button').addEventListener('click', () => {
+            alert('Upload all pending not implemented yet');
+        });
+
+        document.getElementById('post-all-button').addEventListener('click', () => {
+            alert('Post all pending not implemented yet');
+        });
+
+        // Load videos on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVideos();
+        });
+    </script>
+</body>
+</html>

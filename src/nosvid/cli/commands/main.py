@@ -11,6 +11,7 @@ from .download import download_command, register_download_parser
 from .nostrmedia import nostrmedia_command, register_nostrmedia_parser
 from .nostr import nostr_command, register_nostr_parser
 from .consistency import consistency_check_command, register_consistency_check_parser
+from .serve import serve_command, add_serve_command
 
 def main():
     """
@@ -49,6 +50,7 @@ def main():
     register_nostrmedia_parser(subparsers)
     register_nostr_parser(subparsers)
     register_consistency_check_parser(subparsers)
+    add_serve_command(subparsers)
 
     # Parse arguments
     args = parser.parse_args()
@@ -66,6 +68,8 @@ def main():
         return nostr_command(args)
     elif args.command == 'consistency-check':
         return consistency_check_command(args)
+    elif args.command == 'serve':
+        return serve_command(args)
     else:
         parser.print_help()
         return 0

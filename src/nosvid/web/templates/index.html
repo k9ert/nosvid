@@ -3,15 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NosVid - Video Manager</title>
+    <title>NosVid - Einundzwanzig Video Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        @font-face {
+            font-family: 'The Bold Font';
+            src: url('https://www.dafont.com/the-bold-font.font') format('woff2');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        :root {
+            --e21-orange: #F7931A;
+            --e21-blue: #00B4CF;
+            --e21-purple: #A915FF;
+            --e21-dark: #151515;
+            --e21-light: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Inconsolata', monospace;
+            background-color: var(--e21-dark);
+            color: var(--e21-light);
+        }
+
+        h1, h2, h3, h4, h5, h6, .btn {
+            font-family: 'Inconsolata', monospace;
+            font-weight: 700;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            color: var(--e21-orange);
+        }
+
+        .card-body {
+            color: var(--e21-light);
+        }
+
+        .btn-primary {
+            background-color: var(--e21-orange);
+            border-color: var(--e21-orange);
+        }
+
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: #e58315;
+            border-color: #e58315;
+        }
+
+        .btn-success {
+            background-color: var(--e21-blue);
+            border-color: var(--e21-blue);
+        }
+
+        .btn-success:hover, .btn-success:focus {
+            background-color: #00a0b8;
+            border-color: #00a0b8;
+        }
+
+        .btn-info {
+            background-color: var(--e21-purple);
+            border-color: var(--e21-purple);
+            color: white;
+        }
+
+        .btn-info:hover, .btn-info:focus {
+            background-color: #9513e0;
+            border-color: #9513e0;
+            color: white;
+        }
+
+        .btn-warning {
+            background-color: var(--e21-orange);
+            border-color: var(--e21-orange);
+            color: white;
+        }
+
+        .btn-warning:hover, .btn-warning:focus {
+            background-color: #e58315;
+            border-color: #e58315;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #333;
+            border-color: #333;
+        }
+
         .video-card {
             margin-bottom: 20px;
         }
+
         .video-actions {
             margin-top: 10px;
         }
+
         .status-indicator {
             display: inline-block;
             width: 12px;
@@ -19,50 +113,111 @@
             border-radius: 50%;
             margin-right: 5px;
         }
+
         .status-downloaded {
-            background-color: #28a745;
+            background-color: var(--e21-blue);
         }
+
         .status-not-downloaded {
             background-color: #dc3545;
         }
+
         .status-uploaded {
-            background-color: #17a2b8;
+            background-color: var(--e21-purple);
         }
+
         .status-not-uploaded {
-            background-color: #ffc107;
+            background-color: var(--e21-orange);
         }
+
         .status-posted {
-            background-color: #6f42c1;
+            background-color: var(--e21-blue);
         }
+
         .status-not-posted {
-            background-color: #fd7e14;
+            background-color: var(--e21-orange);
+        }
+
+        .page-link {
+            background-color: #1e1e1e;
+            color: var(--e21-orange);
+            border-color: #333;
+        }
+
+        .page-link:hover {
+            background-color: #333;
+            color: var(--e21-orange);
+        }
+
+        .page-item.active .page-link {
+            background-color: var(--e21-orange);
+            border-color: var(--e21-orange);
+        }
+
+        .form-select {
+            background-color: #1e1e1e;
+            color: var(--e21-light);
+            border-color: #333;
+        }
+
+        .form-select:focus {
+            border-color: var(--e21-orange);
+            box-shadow: 0 0 0 0.25rem rgba(247, 147, 26, 0.25);
+        }
+
+        .header-logo {
+            max-height: 50px;
+            margin-right: 15px;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container mt-4">
-        <h1 class="mb-4">NosVid - Video Manager</h1>
+        <div class="header-container">
+            <img src="https://einundzwanzig.space/img/media/einundzwanzig-square.svg" alt="Einundzwanzig Logo" class="header-logo">
+            <h1 class="mb-0">NosVid - Einundzwanzig Video Manager</h1>
+        </div>
 
         <div class="row mb-4">
-            <div class="col">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title">Statistics</h5>
-                        <p class="card-text">Total Videos: <span id="total-videos">0</span></p>
-                        <p class="card-text">Downloaded: <span id="downloaded-videos">0</span></p>
-                        <p class="card-text">Uploaded to Nostrmedia: <span id="uploaded-videos">0</span></p>
-                        <p class="card-text">Posted to Nostr: <span id="posted-videos">0</span></p>
+                        <h5 class="card-title">📊 Statistics</h5>
+                        <div class="d-flex justify-content-between">
+                            <span>Total Videos:</span>
+                            <span class="badge" style="background-color: var(--e21-orange);" id="total-videos">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>Downloaded:</span>
+                            <span class="badge" style="background-color: var(--e21-blue);" id="downloaded-videos">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>Uploaded to Nostrmedia:</span>
+                            <span class="badge" style="background-color: var(--e21-purple);" id="uploaded-videos">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>Posted to Nostr:</span>
+                            <span class="badge" style="background-color: var(--e21-orange);" id="posted-videos">0</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col">
+            <div class="col-md-8">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title">Actions</h5>
-                        <button id="sync-button" class="btn btn-primary me-2">Sync Metadata</button>
-                        <button id="download-all-button" class="btn btn-success me-2">Download All Pending</button>
-                        <button id="upload-all-button" class="btn btn-info me-2">Upload All Pending</button>
-                        <button id="post-all-button" class="btn btn-warning">Post All Pending</button>
+                        <h5 class="card-title">⚡ Actions</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button id="sync-button" class="btn btn-primary">🔄 Sync Metadata</button>
+                            <button id="download-all-button" class="btn btn-success">⬇️ Download All Pending</button>
+                            <button id="upload-all-button" class="btn btn-info">⬆️ Upload All Pending</button>
+                            <button id="post-all-button" class="btn btn-warning">📝 Post All Pending</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -72,9 +227,10 @@
             <div class="col">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title">Filters</h5>
-                        <div class="row">
+                        <h5 class="card-title">🔍 Filters</h5>
+                        <div class="row g-3">
                             <div class="col-md-3">
+                                <label for="filter-status" class="form-label">Status</label>
                                 <select id="filter-status" class="form-select">
                                     <option value="all">All Videos</option>
                                     <option value="downloaded">Downloaded</option>
@@ -86,20 +242,23 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
+                                <label for="sort-by" class="form-label">Sort By</label>
                                 <select id="sort-by" class="form-select">
-                                    <option value="published_at">Sort by Date</option>
-                                    <option value="title">Sort by Title</option>
-                                    <option value="duration">Sort by Duration</option>
+                                    <option value="published_at">Date</option>
+                                    <option value="title">Title</option>
+                                    <option value="duration">Duration</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
+                                <label for="sort-order" class="form-label">Order</label>
                                 <select id="sort-order" class="form-select">
                                     <option value="desc">Descending</option>
                                     <option value="asc">Ascending</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <button id="apply-filters-button" class="btn btn-primary w-100">Apply Filters</button>
+                                <label class="form-label">&nbsp;</label>
+                                <button id="apply-filters-button" class="btn btn-primary w-100">🔎 Apply Filters</button>
                             </div>
                         </div>
                     </div>
@@ -125,6 +284,18 @@
                 </nav>
             </div>
         </div>
+
+        <footer class="mt-5 mb-4 text-center">
+            <div class="container">
+                <div class="row">
+                    <div class="col">
+                        <p class="text-muted">
+                            <small>Made with 💛 for <a href="https://einundzwanzig.space" target="_blank" style="color: var(--e21-orange);">Einundzwanzig</a></small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <!-- Video Template -->
@@ -133,25 +304,30 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title video-title">Video Title</h5>
-                    <p class="card-text video-date">Published: <span></span></p>
-                    <p class="card-text video-duration">Duration: <span></span></p>
-                    <p class="card-text video-id">ID: <span></span></p>
-                    <div class="video-status">
-                        <p class="card-text">
-                            <span class="status-indicator status-downloaded"></span> Downloaded
-                        </p>
-                        <p class="card-text">
-                            <span class="status-indicator status-uploaded"></span> Uploaded to Nostrmedia
-                        </p>
-                        <p class="card-text">
-                            <span class="status-indicator status-posted"></span> Posted to Nostr
-                        </p>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-dark text-light video-id">ID: <span></span></span>
+                        <span class="badge" style="background-color: var(--e21-blue);">⏱️ <span class="video-duration"></span></span>
                     </div>
-                    <div class="video-actions">
-                        <button class="btn btn-sm btn-primary download-button">Download</button>
-                        <button class="btn btn-sm btn-info upload-button">Upload to Nostrmedia</button>
-                        <button class="btn btn-sm btn-warning post-button">Post to Nostr</button>
-                        <a href="#" class="btn btn-sm btn-secondary view-button" target="_blank">View on YouTube</a>
+                    <p class="card-text video-date"><small>Published: <span></span></small></p>
+                    <div class="video-status mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Downloaded</span>
+                            <span class="status-indicator status-downloaded"></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Uploaded to Nostrmedia</span>
+                            <span class="status-indicator status-uploaded"></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Posted to Nostr</span>
+                            <span class="status-indicator status-posted"></span>
+                        </div>
+                    </div>
+                    <div class="video-actions d-grid gap-2">
+                        <button class="btn btn-sm btn-primary download-button">⬇️ Download</button>
+                        <button class="btn btn-sm btn-info upload-button">⬆️ Upload to Nostrmedia</button>
+                        <button class="btn btn-sm btn-warning post-button">📝 Post to Nostr</button>
+                        <a href="#" class="btn btn-sm btn-secondary view-button" target="_blank">👁️ View on YouTube</a>
                     </div>
                 </div>
             </div>
@@ -225,7 +401,7 @@
                         // Set video data
                         clone.querySelector('.video-title').textContent = video.title;
                         clone.querySelector('.video-date span').textContent = new Date(video.published_at).toLocaleDateString();
-                        clone.querySelector('.video-duration span').textContent = formatDuration(video.duration);
+                        clone.querySelector('.video-duration').textContent = formatDuration(video.duration);
                         clone.querySelector('.video-id span').textContent = video.video_id;
 
                         // Set video status
@@ -479,9 +655,13 @@
             // Show a notification
             const notification = document.createElement('div');
             notification.id = 'download-notification';
-            notification.className = 'alert alert-info position-fixed bottom-0 end-0 m-3';
+            notification.className = 'position-fixed bottom-0 end-0 m-3 p-3 rounded';
+            notification.style.backgroundColor = 'var(--e21-orange)';
+            notification.style.color = 'white';
+            notification.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+            notification.style.zIndex = '1050';
             notification.innerHTML = `
-                <strong>Download in progress:</strong> Video ${videoId || ''}
+                <strong>⬇️ Download in progress:</strong> Video ${videoId || ''}
                 <div class="spinner-border spinner-border-sm ms-2" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>

@@ -11,6 +11,10 @@ nostr:
   # Public key (hex or npub format)
   npub: "YOUR_NPUB_HERE"
 
+# HeyGen API Configuration
+heygen:
+  api_key: "YOUR_HEYGEN_API_KEY_HERE"
+
 # Default Settings
 defaults:
   output_dir: "~/Downloads/nosvid"

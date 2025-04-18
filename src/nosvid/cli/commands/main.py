@@ -12,6 +12,7 @@ from .nostrmedia import nostrmedia_command, register_nostrmedia_parser
 from .nostr import nostr_command, register_nostr_parser
 from .consistency import consistency_check_command, register_consistency_check_parser
 from .serve import serve_command, add_serve_command
+from .heygen import heygen_command, heygen_status_command, register_heygen_parser
 
 def main():
     """
@@ -51,6 +52,7 @@ def main():
     register_nostr_parser(subparsers)
     register_consistency_check_parser(subparsers)
     add_serve_command(subparsers)
+    register_heygen_parser(subparsers)
 
     # Parse arguments
     args = parser.parse_args()
@@ -70,6 +72,10 @@ def main():
         return consistency_check_command(args)
     elif args.command == 'serve':
         return serve_command(args)
+    elif args.command == 'heygen':
+        return heygen_command(args)
+    elif args.command == 'heygen-status':
+        return heygen_status_command(args)
     else:
         parser.print_help()
         return 0

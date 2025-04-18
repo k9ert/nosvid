@@ -55,6 +55,10 @@ nostr:
   #   - "wss://relay.snort.social"
   #   - "wss://relay.nostrudel.ninja"
 
+# HeyGen API Configuration (optional, for video translation functionality)
+heygen:
+  api_key: "YOUR_HEYGEN_API_KEY_HERE"
+
 # Default Settings
 defaults:
   output_dir: "./repository"
@@ -80,13 +84,15 @@ Note: The nostr-sdk package is used for nostrmedia and nostr functionality. If y
 
 ## Usage
 
-NosVid provides a simple command-line interface with four main commands:
+NosVid provides a simple command-line interface with several main commands:
 
 - `sync`: Sync metadata for all videos in a channel
 - `list`: List videos in the repository
 - `download`: Download videos
 - `nostrmedia`: Upload videos to nostrmedia.com
 - `nostr`: Publish videos to the Nostr network
+- `heygen`: Translate videos using HeyGen
+- `heygen-status`: Check the status of HeyGen translations
 
 ### Quick Start
 
@@ -114,6 +120,12 @@ nosvid consistency-check
 
 # Fix inconsistencies in metadata.json files
 nosvid consistency-check --fix
+
+# Translate a video using HeyGen
+nosvid heygen VIDEO_ID --language "Spanish"
+
+# Check the status of a translation
+nosvid heygen-status VIDEO_ID --language "Spanish"
 ```
 
 ### Consistency Check
@@ -336,6 +348,75 @@ Options:
 - `--private-key`: Private key string (hex or nsec format, if not provided, will use from config)
 - `--debug`: Enable debug output for detailed information about the publishing process
 
+### Translate Videos with HeyGen
+
+To translate a video using HeyGen's AI video translation service:
+
+```bash
+nosvid heygen VIDEO_ID --language "Spanish"
+```
+
+To list all supported languages:
+
+```bash
+nosvid heygen --list-languages
+```
+
+To translate a video and wait for the translation to complete:
+
+```bash
+nosvid heygen VIDEO_ID --language "Spanish" --wait --download
+```
+
+The HeyGen integration supports different quality levels that correspond to HeyGen's subscription plans:
+
+- `free`: Uses the free plan (includes watermark)
+- `pro`: Uses the Pro plan features
+- `scale`: Uses the Scale plan features (includes video translation API)
+
+Each quality level is stored in a separate directory to prevent overwriting translations from different quality levels.
+
+#### Automatic Backtracking
+
+The `heygen` command includes automatic backtracking functionality:
+
+1. If the video hasn't been downloaded yet, it will use the YouTube URL from metadata
+2. If the video metadata hasn't been synced yet, it will prompt you to sync it first
+
+Options:
+- `--output-dir`: Base directory for downloads (default: ./repository)
+- `--language`: Target language for translation (default: English)
+- `--quality`: Quality level of the translation (free, pro, scale) (default: free)
+- `--url`: URL of the video to translate (if not provided, will use YouTube URL from metadata)
+- `--wait`: Wait for translation to complete
+- `--timeout`: Maximum time to wait for translation in seconds (default: 3600)
+- `--check-interval`: Time between status checks in seconds (default: 30)
+- `--download`: Download the translated video when complete
+- `--force`: Force retranslation even if already translated
+- `--list-languages`: List supported languages and exit
+- `--debug`: Enable debug output
+
+### Check HeyGen Translation Status
+
+To check the status of a HeyGen translation:
+
+```bash
+nosvid heygen-status VIDEO_ID --language "Spanish"
+```
+
+To check the status and download the translated video if it's complete:
+
+```bash
+nosvid heygen-status VIDEO_ID --language "Spanish" --download
+```
+
+Options:
+- `--output-dir`: Base directory for downloads (default: ./repository)
+- `--language`: Language of the translation to check (default: English)
+- `--quality`: Quality level of the translation (free, pro, scale) (default: free)
+- `--download`: Download the translated video if complete
+- `--debug`: Enable debug output
+
 ## Repository Structure
 
 The downloaded videos are organized as follows:
@@ -357,8 +438,18 @@ repository/
         │   │   └── metadata.json (YouTube-specific metadata)
         │   ├── nostrmedia/
         │   │   └── metadata.json (Nostrmedia-specific metadata)
-        │   └── nostr/
-        │       └── metadata.json (Nostr-specific metadata)
+        │   ├── nostr/
+        │   │   └── metadata.json (Nostr-specific metadata)
+        │   └── heygen/
+        │       ├── free/
+        │       │   ├── Spanish.mp4
+        │       │   └── metadata.json (HeyGen free plan metadata)
+        │       ├── pro/
+        │       │   ├── German.mp4
+        │       │   └── metadata.json (HeyGen pro plan metadata)
+        │       └── scale/
+        │           ├── French.mp4
+        │           └── metadata.json (HeyGen scale plan metadata)
         └── video_id2/
             ├── metadata.json
             ├── youtube/

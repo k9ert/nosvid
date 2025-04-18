@@ -4,11 +4,23 @@ Video service for nosvid
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import threading
 
 from ..models.video import Video, Platform
 from ..models.result import Result
 from ..repo.video_repo import VideoRepo
 from ..download.video import download_video as download_video_func
+
+# Global download lock to prevent concurrent downloads
+download_lock = threading.Lock()
+
+# Global download status
+download_status = {
+    "in_progress": False,
+    "video_id": None,
+    "started_at": None,
+    "user": None
+}
 
 class VideoService:
     """
@@ -72,7 +84,7 @@ class VideoService:
         except Exception as e:
             return Result.failure(str(e))
 
-    def download_video(self, video_id: str, channel_title: str, quality: str = "best") -> Result[bool]:
+    def download_video(self, video_id: str, channel_title: str, quality: str = "best", user: str = "anonymous") -> Result[bool]:
         """
         Download a video
 
@@ -80,11 +92,22 @@ class VideoService:
             video_id: ID of the video
             channel_title: Title of the channel
             quality: Quality of the video to download
+            user: Identifier for the user initiating the download
 
         Returns:
             Result indicating success or failure
         """
+        # Check if a download is already in progress
+        if not download_lock.acquire(blocking=False):
+            return Result.failure(f"Another download is already in progress for video {download_status['video_id']}. Please wait and try again.")
+
         try:
+            # Update download status
+            download_status["in_progress"] = True
+            download_status["video_id"] = video_id
+            download_status["started_at"] = datetime.now().isoformat()
+            download_status["user"] = user
+
             # Get the video
             video_result = self.get_video(video_id, channel_title)
             if not video_result.success:
@@ -101,8 +124,8 @@ class VideoService:
                 quality=quality
             )
 
-            if not download_result.get('success', False):
-                return Result.failure(f"Failed to download video: {download_result.get('error', 'Unknown error')}")
+            if not download_result:
+                return Result.failure(f"Failed to download video: Unknown error")
 
             # Update the video metadata
             if 'platforms' not in video.to_dict():
@@ -125,6 +148,13 @@ class VideoService:
             return Result.success(True)
         except Exception as e:
             return Result.failure(str(e))
+        finally:
+            # Always reset download status and release the lock when done
+            download_status["in_progress"] = False
+            download_status["video_id"] = None
+            download_status["started_at"] = None
+            download_status["user"] = None
+            download_lock.release()
 
     def save_video(self, video: Video, channel_title: str) -> Result[bool]:
         """

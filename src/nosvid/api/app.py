@@ -5,9 +5,10 @@ FastAPI application for nosvid
 from fastapi import FastAPI, Depends, HTTPException, Query
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
+from datetime import datetime
 
 from ..services.config_service import ConfigService
-from ..services.video_service import VideoService
+from ..services.video_service import VideoService, download_status
 from ..repo.video_repo import FileSystemVideoRepo
 from ..models.video import Video, Platform, NostrPost
 
@@ -53,6 +54,13 @@ class DownloadResponse(BaseModel):
     """Response model for downloading a video"""
     success: bool
     message: str
+
+class DownloadStatusResponse(BaseModel):
+    """Response model for checking download status"""
+    in_progress: bool
+    video_id: Optional[str] = None
+    started_at: Optional[str] = None
+    user: Optional[str] = None
 
 # Dependency injection
 def get_config_service():
@@ -185,7 +193,10 @@ def download_video(
     """
     Download a video
     """
-    result = video_service.download_video(video_id, channel_title, request.quality)
+    # Generate a simple user identifier (in a real app, this would be a session ID or user ID)
+    user_id = f"user-{datetime.now().timestamp()}"
+
+    result = video_service.download_video(video_id, channel_title, request.quality, user_id)
 
     if not result.success:
         raise HTTPException(status_code=500, detail=result.error)
@@ -194,3 +205,10 @@ def download_video(
         "success": True,
         "message": f"Video {video_id} downloaded successfully"
     }
+
+@app.get("/download/status", response_model=DownloadStatusResponse)
+def get_download_status():
+    """
+    Get the current download status
+    """
+    return download_status

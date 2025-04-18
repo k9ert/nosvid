@@ -422,8 +422,107 @@
             return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
         }
 
+        // Track if a download is in progress
+        let downloadInProgress = false;
+        let downloadStatusCheckInterval = null;
+
+        // Check download status from the server
+        function checkDownloadStatus() {
+            fetch(`${API_URL}/download/status`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.in_progress) {
+                        // A download is in progress
+                        if (!downloadInProgress) {
+                            // We didn't know about this download, update UI
+                            startDownloadUI(data.video_id);
+                        }
+                    } else {
+                        // No download in progress
+                        if (downloadInProgress) {
+                            // The download we knew about has completed
+                            stopDownloadUI();
+                            loadVideos(); // Refresh the video list
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking download status:', error);
+                });
+        }
+
+        // Start periodic download status checking
+        function startStatusChecking() {
+            if (!downloadStatusCheckInterval) {
+                downloadStatusCheckInterval = setInterval(checkDownloadStatus, 2000); // Check every 2 seconds
+            }
+        }
+
+        // Stop periodic download status checking
+        function stopStatusChecking() {
+            if (downloadStatusCheckInterval) {
+                clearInterval(downloadStatusCheckInterval);
+                downloadStatusCheckInterval = null;
+            }
+        }
+
+        // Update UI to show download in progress
+        function startDownloadUI(videoId) {
+            downloadInProgress = true;
+            const downloadButtons = document.querySelectorAll('.download-button');
+            downloadButtons.forEach(button => {
+                button.disabled = true;
+                button.classList.add('disabled');
+                button.textContent = 'Downloading...';
+            });
+
+            // Show a notification
+            const notification = document.createElement('div');
+            notification.id = 'download-notification';
+            notification.className = 'alert alert-info position-fixed bottom-0 end-0 m-3';
+            notification.innerHTML = `
+                <strong>Download in progress:</strong> Video ${videoId || ''}
+                <div class="spinner-border spinner-border-sm ms-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            `;
+            document.body.appendChild(notification);
+        }
+
+        // Update UI when download completes
+        function stopDownloadUI() {
+            downloadInProgress = false;
+
+            // Remove the notification if it exists
+            const notification = document.getElementById('download-notification');
+            if (notification) {
+                notification.remove();
+            }
+
+            // Re-enable all download buttons
+            const downloadButtons = document.querySelectorAll('.download-button');
+            downloadButtons.forEach(button => {
+                button.disabled = false;
+                button.classList.remove('disabled');
+                button.textContent = 'Download';
+            });
+        }
+
         // Download a video
         function downloadVideo(videoId) {
+            // Prevent multiple downloads
+            if (downloadInProgress) {
+                alert('Another download is already in progress. Please wait for it to complete.');
+                return;
+            }
+
+            // Start the download UI
+            startDownloadUI(videoId);
+
+            // Start checking status
+            startStatusChecking();
+
+            // Start the download
             fetch(`${API_URL}/videos/${videoId}/download`, {
                 method: 'POST',
                 headers: {
@@ -435,16 +534,18 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        alert(`Video ${videoId} downloaded successfully!`);
-                        loadVideos();
-                    } else {
+                    if (!data.success) {
+                        // Only handle errors here, success will be handled by status checking
                         alert(`Error downloading video: ${data.message}`);
+                        stopDownloadUI();
+                        stopStatusChecking();
                     }
                 })
                 .catch(error => {
                     console.error('Error downloading video:', error);
                     alert('Error downloading video. Please try again.');
+                    stopDownloadUI();
+                    stopStatusChecking();
                 });
         }
 
@@ -472,6 +573,11 @@
         });
 
         document.getElementById('download-all-button').addEventListener('click', () => {
+            // Prevent multiple downloads
+            if (downloadInProgress) {
+                alert('Another download is already in progress. Please wait for it to complete.');
+                return;
+            }
             alert('Download all pending not implemented yet');
         });
 
@@ -486,6 +592,12 @@
         // Load videos on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadVideos();
+
+            // Check if there's a download in progress
+            checkDownloadStatus();
+
+            // Start periodic status checking
+            startStatusChecking();
         });
     </script>
 </body>

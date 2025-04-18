@@ -85,6 +85,21 @@ def list_videos(
     """
     List videos with pagination and sorting
     """
+    # First, get the total count of videos without pagination
+    total_result = video_service.list_videos(
+        channel_title=channel_title,
+        limit=None,
+        offset=0,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
+    if not total_result.success:
+        raise HTTPException(status_code=500, detail=total_result.error)
+
+    total_count = len(total_result.data)
+
+    # Then, get the paginated videos
     result = video_service.list_videos(
         channel_title=channel_title,
         limit=limit,
@@ -119,7 +134,7 @@ def list_videos(
 
     return {
         "videos": processed_videos,
-        "total": len(processed_videos),
+        "total": total_count,
         "offset": offset,
         "limit": limit
     }

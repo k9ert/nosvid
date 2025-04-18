@@ -5,11 +5,58 @@ Simple script to run nosvid without installation
 
 import sys
 import os
+import unittest
+import argparse
 
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from nosvid.cli.commands.main import main
 
+def run_tests(test_path=None, verbose=False):
+    """
+    Run tests using unittest
+
+    Args:
+        test_path: Path to test file or directory
+        verbose: Whether to show verbose output
+
+    Returns:
+        Exit code (0 for success, 1 for failure)
+    """
+    loader = unittest.TestLoader()
+
+    if test_path:
+        if os.path.isfile(test_path):
+            # Run a specific test file
+            suite = loader.discover(os.path.dirname(test_path), pattern=os.path.basename(test_path))
+        else:
+            # Run all tests in a directory
+            suite = loader.discover(test_path)
+    else:
+        # Run all tests
+        suite = loader.discover('tests')
+
+    runner = unittest.TextTestRunner(verbosity=2 if verbose else 1)
+    result = runner.run(suite)
+
+    return 0 if result.wasSuccessful() else 1
+
 if __name__ == '__main__':
-    sys.exit(main())
+    # Check if running tests
+    if len(sys.argv) > 1 and sys.argv[1] == 'test':
+        # Remove 'test' from arguments
+        sys.argv.pop(1)
+
+        # Parse test arguments
+        parser = argparse.ArgumentParser(description='Run nosvid tests')
+        parser.add_argument('test_path', nargs='?', help='Path to test file or directory')
+        parser.add_argument('-v', '--verbose', action='store_true', help='Show verbose output')
+
+        args, unknown = parser.parse_known_args(sys.argv[1:])
+
+        # Run tests
+        sys.exit(run_tests(args.test_path, args.verbose))
+    else:
+        # Run normal command
+        sys.exit(main())

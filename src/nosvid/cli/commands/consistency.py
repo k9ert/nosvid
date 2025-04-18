@@ -3,7 +3,7 @@ Consistency check command for nosvid CLI
 """
 
 from .base import get_channel_title
-from ...utils.consistency import check_metadata_consistency
+from ...metadata.consistency import check_metadata_consistency
 
 def consistency_check_command(args):
     """

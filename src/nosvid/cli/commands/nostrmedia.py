@@ -5,8 +5,10 @@ Nostrmedia command for nosvid CLI
 import os
 from datetime import datetime
 from .base import get_channel_title
-from ...utils.filesystem import setup_directory_structure, get_platform_dir, load_json_file, save_json_file
-from ...nostrmedia.upload import upload_to_nostrmedia
+from ...utils.filesystem import setup_directory_structure, get_platform_dir
+from ...platforms.youtube import find_youtube_video_file
+from ...platforms.nostrmedia import upload_video_to_nostrmedia, update_nostrmedia_metadata
+from ...metadata.common import get_main_metadata, update_main_metadata, update_platform_metadata
 
 def nostrmedia_command(args):
     """
@@ -32,12 +34,10 @@ def nostrmedia_command(args):
         youtube_dir = get_platform_dir(video_dir, 'youtube')
 
         # Load the metadata
-        metadata_file = os.path.join(video_dir, 'metadata.json')
-        if not os.path.exists(metadata_file):
-            print(f"Metadata file not found: {metadata_file}")
+        metadata = get_main_metadata(video_dir)
+        if not metadata:
+            print(f"Metadata file not found for video: {args.video_id}")
             return 1
-
-        metadata = load_json_file(metadata_file)
 
         # Check if the video has been downloaded
         if 'platforms' not in metadata or 'youtube' not in metadata['platforms'] or not metadata['platforms']['youtube'].get('downloaded', False):
@@ -45,29 +45,20 @@ def nostrmedia_command(args):
             return 1
 
         # Find the video file
-        video_files = []
-        for file in os.listdir(youtube_dir):
-            if file.endswith('.mp4') or file.endswith('.webm') or file.endswith('.mkv'):
-                video_files.append(os.path.join(youtube_dir, file))
-
-        if not video_files:
+        video_file = find_youtube_video_file(video_dir)
+        if not video_file:
             print(f"No video files found in: {youtube_dir}")
             return 1
 
-        # Use the first video file
-        video_file = video_files[0]
         print(f"Found video file: {os.path.basename(video_file)}")
 
         # Upload the video to nostrmedia
-        result = upload_to_nostrmedia(video_file, args.private_key, debug=args.debug)
+        result = upload_video_to_nostrmedia(video_file, args.private_key, debug=args.debug)
 
         # Add timestamp to the result
         result['uploaded_at'] = datetime.now().isoformat()
 
         if result['success']:
-            # Create platform-specific directory for nostrmedia
-            nostrmedia_dir = get_platform_dir(video_dir, 'nostrmedia')
-
             # Create nostrmedia-specific metadata
             nostrmedia_metadata = {
                 'url': result['url'],
@@ -76,22 +67,12 @@ def nostrmedia_command(args):
             }
 
             # Save nostrmedia-specific metadata
-            nostrmedia_metadata_file = os.path.join(nostrmedia_dir, 'metadata.json')
-            save_json_file(nostrmedia_metadata_file, nostrmedia_metadata)
+            update_nostrmedia_metadata(video_dir, nostrmedia_metadata)
 
             # Update main metadata to include the nostrmedia platform
-            main_metadata_file = os.path.join(video_dir, 'metadata.json')
-            if os.path.exists(main_metadata_file):
-                main_metadata = load_json_file(main_metadata_file)
-
-                # Initialize platforms dict if it doesn't exist
-                if 'platforms' not in main_metadata:
-                    main_metadata['platforms'] = {}
-
-                # Add nostrmedia platform
-                main_metadata['platforms']['nostrmedia'] = nostrmedia_metadata
-
-                save_json_file(main_metadata_file, main_metadata)
+            main_metadata = get_main_metadata(video_dir)
+            main_metadata = update_platform_metadata(main_metadata, 'nostrmedia', nostrmedia_metadata)
+            update_main_metadata(video_dir, main_metadata)
 
             return 0
         else:

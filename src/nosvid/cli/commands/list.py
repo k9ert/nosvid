@@ -2,7 +2,7 @@
 List command for nosvid CLI
 """
 
-from .base import get_channel_title
+from .base import get_channel_title, CHANNEL_MAPPING
 from ...utils.filesystem import setup_directory_structure
 from ...metadata.list import list_videos, print_video_list
 
@@ -33,8 +33,9 @@ def list_command(args):
         # Set up directory structure
         dirs = setup_directory_structure(args.output_dir, channel_title)
 
-        # Get the channel ID from the config
-        channel_id = None  # This would come from config in a real implementation
+        # Get the channel ID from the mapping
+        # For now, we're using the hardcoded channel ID for Einundzwanzig
+        channel_id = "UCxSRxq14XIoMbFDEjMOPU5Q"  # Einundzwanzig Podcast
 
         # List the videos
         videos, stats = list_videos(

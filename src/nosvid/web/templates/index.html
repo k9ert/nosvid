@@ -190,20 +190,32 @@
                     <div class="card-body">
                         <h5 class="card-title">📊 Statistics</h5>
                         <div class="d-flex justify-content-between">
-                            <span>Total Videos:</span>
-                            <span class="badge" style="background-color: var(--e21-orange);" id="total-videos">0</span>
+                            <span>Videos in cache (YT):</span>
+                            <span class="badge" style="background-color: var(--e21-orange);" id="total-in-cache">0</span>
                         </div>
                         <div class="d-flex justify-content-between mt-2">
-                            <span>Downloaded:</span>
-                            <span class="badge" style="background-color: var(--e21-blue);" id="downloaded-videos">0</span>
+                            <span>Metadata (YT):</span>
+                            <span class="badge" style="background-color: var(--e21-blue);" id="total-with-metadata">0</span>
                         </div>
                         <div class="d-flex justify-content-between mt-2">
-                            <span>Uploaded to Nostrmedia:</span>
-                            <span class="badge" style="background-color: var(--e21-purple);" id="uploaded-videos">0</span>
+                            <span>Downloaded (YT):</span>
+                            <span class="badge" style="background-color: var(--e21-purple);" id="total-downloaded">0</span>
                         </div>
                         <div class="d-flex justify-content-between mt-2">
-                            <span>Posted to Nostr:</span>
-                            <span class="badge" style="background-color: var(--e21-orange);" id="posted-videos">0</span>
+                            <span>Uploaded (NM):</span>
+                            <span class="badge" style="background-color: var(--e21-orange);" id="total-uploaded-nm">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>Posted (NS):</span>
+                            <span class="badge" style="background-color: var(--e21-blue);" id="total-posted-nostr">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>Videos with npubs:</span>
+                            <span class="badge" style="background-color: var(--e21-purple);" id="total-with-npubs">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>Total npubs found:</span>
+                            <span class="badge" style="background-color: var(--e21-orange);" id="total-npubs">0</span>
                         </div>
                     </div>
                 </div>
@@ -373,7 +385,7 @@
                     videosContainer.innerHTML = '';
 
                     totalVideos = data.total;
-                    document.getElementById('total-videos').textContent = totalVideos;
+                    // We don't need to update total-in-cache here as it's handled by loadStatistics()
 
                     let downloadedCount = 0;
                     let uploadedCount = 0;
@@ -503,9 +515,7 @@
                     });
 
                     // Update statistics
-                    document.getElementById('downloaded-videos').textContent = downloadedCount;
-                    document.getElementById('uploaded-videos').textContent = uploadedCount;
-                    document.getElementById('posted-videos').textContent = postedCount;
+                    loadStatistics();
 
                     // Update pagination
                     updatePagination();
@@ -619,6 +629,7 @@
                             // The download we knew about has completed
                             stopDownloadUI();
                             loadVideos(); // Refresh the video list
+                            loadStatistics(); // Refresh statistics
                         }
                     }
                 })
@@ -769,9 +780,45 @@
             alert('Post all pending not implemented yet');
         });
 
+        // Load statistics
+        function loadStatistics() {
+            fetch(`${API_URL}/statistics`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update statistics in the UI
+                    document.getElementById('total-in-cache').textContent = data.total_in_cache;
+                    document.getElementById('total-with-metadata').textContent = data.total_with_metadata;
+                    document.getElementById('total-downloaded').textContent = data.total_downloaded;
+                    document.getElementById('total-uploaded-nm').textContent = data.total_uploaded_nm;
+                    document.getElementById('total-posted-nostr').textContent = data.total_posted_nostr;
+                    document.getElementById('total-with-npubs').textContent = data.total_with_npubs;
+                    document.getElementById('total-npubs').textContent = data.total_npubs;
+
+                    // Calculate and display percentages
+                    if (data.total_in_cache > 0) {
+                        const metadataPercent = (data.total_with_metadata / data.total_in_cache * 100).toFixed(1);
+                        const downloadedPercent = (data.total_downloaded / data.total_in_cache * 100).toFixed(1);
+                        const uploadedPercent = (data.total_uploaded_nm / data.total_in_cache * 100).toFixed(1);
+                        const postedPercent = (data.total_posted_nostr / data.total_in_cache * 100).toFixed(1);
+                        const npubsPercent = (data.total_with_npubs / data.total_in_cache * 100).toFixed(1);
+
+                        // Add percentages to the badges
+                        document.getElementById('total-with-metadata').textContent += ` (${metadataPercent}%)`;
+                        document.getElementById('total-downloaded').textContent += ` (${downloadedPercent}%)`;
+                        document.getElementById('total-uploaded-nm').textContent += ` (${uploadedPercent}%)`;
+                        document.getElementById('total-posted-nostr').textContent += ` (${postedPercent}%)`;
+                        document.getElementById('total-with-npubs').textContent += ` (${npubsPercent}%)`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading statistics:', error);
+                });
+        }
+
         // Load videos on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadVideos();
+            loadStatistics();
 
             // Check if there's a download in progress
             checkDownloadStatus();

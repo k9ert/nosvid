@@ -59,7 +59,7 @@ channel:
         """Test that the homepage loads correctly"""
         response = requests.get(f"http://localhost:{self.port}")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("NosVid - Video Manager", response.text)
+        self.assertIn("NosVid - Einundzwanzig Video Manager", response.text)
 
     def test_server_is_running(self):
         """Test that the server is running"""

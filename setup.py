@@ -3,6 +3,7 @@ from setuptools import setup, find_packages
 
 # Define dependencies
 INSTALL_REQUIRES = [
+    # Core dependencies
     "google-api-python-client>=2.86.0",
     "google-auth>=2.22.0",
     "google-auth-oauthlib>=1.0.0",
@@ -10,12 +11,20 @@ INSTALL_REQUIRES = [
     "pyyaml>=6.0.1",
     "yt-dlp>=2025.3.31",
     "requests>=2.25.0",
+
+    # Nostr dependencies
+    "nostr-sdk>=0.41.0",
+
+    # Web interface dependencies
+    "fastapi>=0.95.0",
+    "uvicorn>=0.21.1",
+    "jinja2>=3.1.2",
+    "pydantic>=1.10.7",
+    "python-multipart>=0.0.6",
 ]
 
-# Optional dependencies
+# Optional dependencies (only for development)
 EXTRAS_REQUIRE = {
-    "nostrmedia": ["nostr-sdk>=0.41.0"],
-    "nostr": ["nostr-sdk>=0.41.0"],
     "dev": ["pytest", "black", "flake8"],
 }
 

@@ -62,6 +62,16 @@ class DownloadStatusResponse(BaseModel):
     started_at: Optional[str] = None
     user: Optional[str] = None
 
+class StatisticsResponse(BaseModel):
+    """Response model for statistics"""
+    total_in_cache: int = 0
+    total_with_metadata: int = 0
+    total_downloaded: int = 0
+    total_uploaded_nm: int = 0
+    total_posted_nostr: int = 0
+    total_with_npubs: int = 0
+    total_npubs: int = 0
+
 # Dependency injection
 def get_config_service():
     """Get the configuration service"""
@@ -212,3 +222,18 @@ def get_download_status():
     Get the current download status
     """
     return download_status
+
+@app.get("/statistics", response_model=StatisticsResponse)
+def get_statistics(
+    channel_title: str = Depends(get_channel_title),
+    video_service: VideoService = Depends(get_video_service)
+):
+    """
+    Get repository statistics
+    """
+    result = video_service.get_cache_statistics(channel_title)
+
+    if not result.success:
+        raise HTTPException(status_code=500, detail=result.error)
+
+    return result.data

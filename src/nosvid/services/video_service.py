@@ -5,6 +5,8 @@ Video service for nosvid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import threading
+import os
+import json
 
 from ..models.video import Video, Platform
 from ..models.result import Result
@@ -155,6 +157,83 @@ class VideoService:
             download_status["started_at"] = None
             download_status["user"] = None
             download_lock.release()
+
+    def get_cache_statistics(self, channel_title: str) -> Result[Dict[str, Any]]:
+        """
+        Get statistics about the video cache and repository
+
+        Args:
+            channel_title: Title of the channel
+
+        Returns:
+            Result containing statistics dictionary
+        """
+        try:
+            # Get the base directory from the repository
+            base_dir = self.video_repository.base_dir
+
+            # Set up paths
+            channel_dir = os.path.join(base_dir, channel_title)
+            metadata_dir = os.path.join(channel_dir, 'metadata')
+            videos_dir = os.path.join(channel_dir, 'videos')
+
+            # Initialize statistics
+            stats = {
+                'total_in_cache': 0,
+                'total_with_metadata': 0,
+                'total_downloaded': 0,
+                'total_uploaded_nm': 0,
+                'total_posted_nostr': 0,
+                'total_with_npubs': 0,
+                'total_npubs': 0
+            }
+
+            # Get the channel ID (hardcoded for now)
+            channel_id = "UCxSRxq14XIoMbFDEjMOPU5Q"  # Einundzwanzig Podcast
+
+            # Check if cache file exists
+            cache_file = os.path.join(metadata_dir, f"channel_videos_{channel_id}.json")
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, 'r', encoding='utf-8') as f:
+                        cache_data = json.load(f)
+                    stats['total_in_cache'] = cache_data.get('video_count', 0)
+                except Exception as e:
+                    print(f"Error reading cache: {e}")
+
+            # Get list of videos with metadata
+            videos = self.video_repository.list(channel_title)
+            stats['total_with_metadata'] = len(videos)
+
+            # Count downloaded, uploaded, and posted videos
+            for video in videos:
+                # Check if downloaded
+                if video.platforms and 'youtube' in video.platforms and video.platforms['youtube'].downloaded:
+                    stats['total_downloaded'] += 1
+
+                # Check if uploaded to Nostrmedia
+                if video.platforms and 'nostrmedia' in video.platforms and video.platforms['nostrmedia'].url:
+                    stats['total_uploaded_nm'] += 1
+
+                # Check if posted to Nostr
+                if video.nostr_posts and len(video.nostr_posts) > 0:
+                    stats['total_posted_nostr'] += 1
+
+                # Count npubs
+                if video.npubs:
+                    npub_count = 0
+                    if 'chat' in video.npubs:
+                        npub_count += len(video.npubs['chat'])
+                    if 'description' in video.npubs:
+                        npub_count += len(video.npubs['description'])
+
+                    if npub_count > 0:
+                        stats['total_with_npubs'] += 1
+                        stats['total_npubs'] += npub_count
+
+            return Result.success(stats)
+        except Exception as e:
+            return Result.failure(str(e))
 
     def save_video(self, video: Video, channel_title: str) -> Result[bool]:
         """

@@ -145,6 +145,18 @@ def get_default_web_port():
         return config['defaults']['web_port']
     return 2121
 
+def get_youtube_cookies_file():
+    """
+    Get the YouTube cookies file path from config
+
+    Returns:
+        Path to cookies file or None if not configured
+    """
+    config = load_config()
+    if 'youtube' in config and 'cookies_file' in config['youtube']:
+        return os.path.expanduser(config['youtube']['cookies_file'])
+    return None
+
 def get_default_download_delay():
     """
     Get the default download delay

@@ -39,6 +39,8 @@ pip install -e .
 # YouTube API Configuration
 youtube:
   api_key: "YOUR_YOUTUBE_API_KEY_HERE"
+  # Path to cookies file for YouTube authentication (optional)
+  # cookies_file: "~/youtube_cookies.txt"
 
 # Nostr Configuration (optional, for nostrmedia and nostr functionality)
 nostr:
@@ -172,6 +174,31 @@ To minimize YouTube API quota usage, the tool caches the channel video list for 
 2. If the cache exists and is less than 24 hours old, use it instead of calling the YouTube API
 3. If the cache is older than 24 hours or doesn't exist, fetch the video list from the YouTube API
 4. If you want to force a refresh from the API regardless of cache age, use the `--force-refresh` flag
+
+### Using Cookies for YouTube Authentication
+
+If you're running NosVid on a server or VPS, you might encounter YouTube's anti-bot measures that prevent downloading videos or fetching metadata. To solve this, you can provide cookies from an authenticated browser session:
+
+1. **Export cookies from your browser**:
+   - Install a browser extension like "Get cookies.txt" for Chrome or Firefox
+   - Log in to YouTube in your browser
+   - Export the cookies to a file (e.g., `youtube_cookies.txt`)
+
+2. **Configure NosVid to use the cookies file**:
+   - Add the path to the cookies file in your `config.yaml`:
+
+   ```yaml
+   youtube:
+     api_key: "YOUR_YOUTUBE_API_KEY_HERE"
+     cookies_file: "~/youtube_cookies.txt"
+   ```
+
+3. **Transfer the cookies file to your server** (if running on a remote server):
+   ```bash
+   scp youtube_cookies.txt user@your-server:~/youtube_cookies.txt
+   ```
+
+NosVid will automatically use these cookies when downloading videos or fetching metadata, which helps bypass YouTube's anti-bot measures.
 
 #### Efficient Video Processing
 

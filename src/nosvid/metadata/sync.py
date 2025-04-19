@@ -19,6 +19,7 @@ from ..utils.filesystem import (
 )
 from ..utils.youtube_api import get_channel_info, get_all_videos_from_channel
 from ..utils.nostr import process_video_directory
+from ..utils.config import get_youtube_cookies_file
 
 def load_sync_history(metadata_dir):
     """
@@ -82,9 +83,17 @@ def fetch_video_metadata(video, videos_dir):
         '--write-subs',
         '--sub-langs', 'all',
         '--no-overwrites',
-        '-o', output_template,
-        video_url
+        '-o', output_template
     ]
+
+    # Add cookies file if configured
+    cookies_file = get_youtube_cookies_file()
+    if cookies_file and os.path.exists(cookies_file):
+        print(f"Using cookies file: {cookies_file}")
+        cmd.extend(['--cookies', cookies_file])
+
+    # Add the video URL
+    cmd.append(video_url)
 
     try:
         # Run the command

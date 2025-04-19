@@ -13,6 +13,7 @@ from ..utils.filesystem import (
     get_platform_dir,
     create_safe_filename
 )
+from ..utils.config import get_youtube_cookies_file
 
 def download_video(video_id, videos_dir, quality='best'):
     """
@@ -79,9 +80,17 @@ def download_video(video_id, videos_dir, quality='best'):
         '--embed-thumbnail',
         '--no-overwrites',
         '--continue',
-        '-o', output_template,
-        video_url
+        '-o', output_template
     ]
+
+    # Add cookies file if configured
+    cookies_file = get_youtube_cookies_file()
+    if cookies_file and os.path.exists(cookies_file):
+        print(f"Using cookies file: {cookies_file}")
+        cmd.extend(['--cookies', cookies_file])
+
+    # Add the video URL
+    cmd.append(video_url)
 
     try:
         # Run the download command

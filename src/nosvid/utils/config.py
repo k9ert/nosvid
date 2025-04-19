@@ -133,6 +133,18 @@ def get_default_video_quality():
         return config['defaults']['video_quality']
     return 'best'
 
+def get_default_web_port():
+    """
+    Get the default web port
+
+    Returns:
+        Default web port
+    """
+    config = load_config()
+    if 'defaults' in config and 'web_port' in config['defaults']:
+        return config['defaults']['web_port']
+    return 2121
+
 def get_default_download_delay():
     """
     Get the default download delay

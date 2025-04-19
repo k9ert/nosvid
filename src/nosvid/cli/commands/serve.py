@@ -3,6 +3,7 @@ Serve command for nosvid
 """
 
 from ...web.app import run as run_web_app
+from ...utils.config import get_default_web_port
 
 def add_serve_command(subparsers):
     """
@@ -16,21 +17,28 @@ def add_serve_command(subparsers):
         help='Run the web interface',
         description='Start a web server to manage videos through a browser interface'
     )
+    serve_parser.add_argument(
+        '--port',
+        type=int,
+        default=get_default_web_port(),
+        help='Port to run the web server on (default: from config or 2121)'
+    )
     serve_parser.set_defaults(func=serve_command)
 
-def serve_command(_):
+def serve_command(args):
     """
     Run the web interface
 
     Args:
-        _: Command line arguments (unused)
+        args: Command line arguments
 
     Returns:
         int: Exit code
     """
     try:
-        print("Starting web interface...")
-        run_web_app()
+        port = args.port
+        print(f"Starting web interface on port {port}...")
+        run_web_app(port=port)
         return 0
     except Exception as e:
         print(f"Error running web interface: {e}")

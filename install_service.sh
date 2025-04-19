@@ -16,7 +16,7 @@ if [ ! -d "$VENV_PATH" ]; then
     echo "Creating virtual environment..."
     python3 -m venv "$VENV_PATH"
     "$VENV_PATH/bin/pip" install -e "$NOSVID_DIR"
-    "$VENV_PATH/bin/pip" install requests
+    "$VENV_PATH/bin/pip" install requests browser_cookie3
 fi
 
 # Check for required system dependencies

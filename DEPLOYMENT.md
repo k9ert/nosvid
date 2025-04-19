@@ -107,6 +107,47 @@ If you see errors like `[Errno 2] No such file or directory: 'yt-dlp'`:
    sudo systemctl restart nosvid.service
    ```
 
+### YouTube Bot Detection
+
+If you see errors like `Sign in to confirm you're not a bot` or `Please sign in to continue`:
+
+1. Refresh your YouTube cookies using the provided script:
+   ```bash
+   ./refresh_youtube_cookies.sh --browser chrome
+   ```
+
+   This script will:
+   - Export cookies from your browser (Chrome by default)
+   - Save them to the cookies file
+   - Update your config.yaml file
+
+2. If you're running on a VPS without a GUI, you'll need to:
+   - Export cookies from your local browser
+   - Transfer the cookies file to your VPS
+   - Update your config.yaml file
+
+   ```bash
+   # On your local machine
+   ./refresh_youtube_cookies.sh --browser chrome --output my_cookies.txt
+
+   # Transfer the file to your VPS
+   scp my_cookies.txt user@your-vps:/path/to/nosvid/
+
+   # On your VPS, update config.yaml
+   # Set youtube.cookies_file to the path of your cookies file
+   ```
+
+3. Restart the NosVid service:
+   ```bash
+   sudo systemctl restart nosvid.service
+   ```
+
+4. If you still encounter bot detection issues, try:
+   - Logging into YouTube in your browser
+   - Solving any CAPTCHA challenges
+   - Refreshing the cookies again
+   - Using a different browser
+
 ### Webhook Not Working
 
 1. Check the webhook handler logs:

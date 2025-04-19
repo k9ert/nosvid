@@ -1,0 +1,17 @@
+[Unit]
+Description=NosVid Service
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/nosvid
+ExecStart=/path/to/nosvid/venv/bin/python /path/to/nosvid/nosvid serve
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

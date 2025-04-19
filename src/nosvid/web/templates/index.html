@@ -106,6 +106,60 @@
             margin-top: 10px;
         }
 
+        /* List view styles */
+        .video-list-item {
+            border-bottom: 1px solid #333;
+            padding: 10px 0;
+            margin-bottom: 5px;
+        }
+
+        .video-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .video-list-title {
+            font-weight: bold;
+            color: var(--e21-orange);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .video-list-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .video-list-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .video-list-actions .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .video-list-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .engagement-bar {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 0.8rem;
+        }
+
         .status-indicator {
             display: inline-block;
             width: 12px;
@@ -203,54 +257,52 @@
         </nav>
 
         <div class="row mb-4">
-            <div class="col-md-4">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">📊 Statistics</h5>
-                        <div class="d-flex justify-content-between">
-                            <span>Videos in cache (YT):</span>
-                            <span class="badge" style="background-color: var(--e21-orange);" id="total-in-cache">0</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>Metadata (YT):</span>
-                            <span class="badge" style="background-color: var(--e21-blue);" id="total-with-metadata">0</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>Downloaded (YT):</span>
-                            <span class="badge" style="background-color: var(--e21-purple);" id="total-downloaded">0</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>Uploaded (NM):</span>
-                            <span class="badge" style="background-color: var(--e21-orange);" id="total-uploaded-nm">0</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>Posted (NS):</span>
-                            <span class="badge" style="background-color: var(--e21-blue);" id="total-posted-nostr">0</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>Videos with npubs:</span>
-                            <span class="badge" style="background-color: var(--e21-purple);" id="total-with-npubs">0</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>Total npubs found:</span>
-                            <span class="badge" style="background-color: var(--e21-orange);" id="total-npubs">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">⚡ Actions</h5>
-                        <div class="d-flex flex-wrap gap-2">
-                            <button id="sync-button" class="btn btn-primary">🔄 Sync Metadata</button>
-                            <button id="download-all-button" class="btn btn-success">⬇️ Download All Pending</button>
-                            <button id="upload-all-button" class="btn btn-info">⬆️ Upload All Pending</button>
-                            <button id="post-all-button" class="btn btn-warning">📝 Post All Pending</button>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>Videos in cache (YT):</span>
+                                    <span class="badge" style="background-color: var(--e21-orange);" id="total-in-cache">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span>Metadata (YT):</span>
+                                    <span class="badge" style="background-color: var(--e21-blue);" id="total-with-metadata">0</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span>Downloaded (YT):</span>
+                                    <span class="badge" style="background-color: var(--e21-purple);" id="total-downloaded">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span>Uploaded (NM):</span>
+                                    <span class="badge" style="background-color: var(--e21-orange);" id="total-uploaded-nm">0</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span>Posted (NS):</span>
+                                    <span class="badge" style="background-color: var(--e21-blue);" id="total-posted-nostr">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span>Videos with npubs:</span>
+                                    <span class="badge" style="background-color: var(--e21-purple);" id="total-with-npubs">0</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span>Total npubs found:</span>
+                                    <span class="badge" style="background-color: var(--e21-orange);" id="total-npubs">0</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
         </div>
 
         <div class="row mb-4">
@@ -296,11 +348,15 @@
             </div>
         </div>
 
-        <div id="videos-container" class="row">
-            <!-- Videos will be loaded here -->
-            <div class="col-12 text-center">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div id="videos-container" class="row">
+                    <!-- Videos will be loaded here -->
+                    <div class="col-12 text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -330,34 +386,39 @@
 
     <!-- Video Template -->
     <template id="video-template">
-        <div class="col-md-6 col-lg-4 video-card">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title video-title">Video Title</h5>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="col-12 video-list-item">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <span class="video-list-title video-title">Video Title</span>
+                    <div class="video-list-meta">
                         <span class="badge bg-dark text-light video-id">ID: <span></span></span>
+                        <span class="video-date"><small>Published: <span></span></small></span>
                         <span class="badge" style="background-color: var(--e21-blue);">⏱️ <span class="video-duration"></span></span>
+                        <span class="engagement-bar video-npubs"></span>
                     </div>
-                    <p class="card-text video-date"><small>Published: <span></span></small></p>
-                    <div class="video-status mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Downloaded</span>
-                            <span class="status-indicator status-downloaded"></span>
+                </div>
+                <div class="col-md-3">
+                    <div class="video-list-status">
+                        <div class="status-group">
+                            <span>YT:</span>
+                            <span class="status-indicator status-downloaded" title="Downloaded"></span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Uploaded to Nostrmedia</span>
-                            <span class="status-indicator status-uploaded"></span>
+                        <div class="status-group">
+                            <span>NM:</span>
+                            <span class="status-indicator status-uploaded" title="Uploaded to Nostrmedia"></span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Posted to Nostr</span>
-                            <span class="status-indicator status-posted"></span>
+                        <div class="status-group">
+                            <span>NS:</span>
+                            <span class="status-indicator status-posted" title="Posted to Nostr"></span>
                         </div>
                     </div>
-                    <div class="video-actions d-grid gap-2">
-                        <button class="btn btn-sm btn-primary download-button">⬇️ Download</button>
-                        <button class="btn btn-sm btn-info upload-button">⬆️ Upload to Nostrmedia</button>
-                        <button class="btn btn-sm btn-warning post-button">📝 Post to Nostr</button>
-                        <a href="#" class="btn btn-sm btn-secondary view-button" target="_blank">👁️ View on YouTube</a>
+                </div>
+                <div class="col-md-3">
+                    <div class="video-list-actions">
+                        <button class="btn btn-sm btn-primary download-button" title="Download">⬇️</button>
+                        <button class="btn btn-sm btn-info upload-button" title="Upload to Nostrmedia">⬆️</button>
+                        <button class="btn btn-sm btn-warning post-button" title="Post to Nostr">📝</button>
+                        <a href="#" class="btn btn-sm btn-secondary view-button" target="_blank" title="View on YouTube">👁️</a>
                     </div>
                 </div>
             </div>
@@ -371,7 +432,7 @@
 
         // Current page and limit
         let currentPage = 1;
-        let limit = 12;
+        let limit = 20;
         let totalVideos = 0;
 
         // Current filters
@@ -433,6 +494,17 @@
                         clone.querySelector('.video-date span').textContent = new Date(video.published_at).toLocaleDateString();
                         clone.querySelector('.video-duration').textContent = formatDuration(video.duration);
                         clone.querySelector('.video-id span').textContent = video.video_id;
+
+                        // Set engagement bar (npubs)
+                        const npubCount = video.npub_count || 0;
+                        // Cap at 10 for display purposes
+                        const displayCount = Math.min(npubCount, 10);
+                        // Create the engagement bar with orange blocks
+                        const orangeBlocks = '█'.repeat(displayCount);
+                        const emptyBlocks = ' '.repeat(10 - displayCount);
+                        const engagementBar = `[${orangeBlocks}${emptyBlocks}]`;
+                        clone.querySelector('.video-npubs').textContent = engagementBar;
+                        clone.querySelector('.video-npubs').style.color = 'var(--e21-orange)';
 
                         // Set video status
                         const isDownloaded = video.platforms && video.platforms.youtube && video.platforms.youtube.downloaded;
@@ -777,26 +849,7 @@
             loadVideos();
         });
 
-        document.getElementById('sync-button').addEventListener('click', () => {
-            alert('Sync metadata not implemented yet');
-        });
 
-        document.getElementById('download-all-button').addEventListener('click', () => {
-            // Prevent multiple downloads
-            if (downloadInProgress) {
-                alert('Another download is already in progress. Please wait for it to complete.');
-                return;
-            }
-            alert('Download all pending not implemented yet');
-        });
-
-        document.getElementById('upload-all-button').addEventListener('click', () => {
-            alert('Upload all pending not implemented yet');
-        });
-
-        document.getElementById('post-all-button').addEventListener('click', () => {
-            alert('Post all pending not implemented yet');
-        });
 
         // Load statistics
         function loadStatistics() {

@@ -19,6 +19,22 @@ if [ ! -d "$VENV_PATH" ]; then
     "$VENV_PATH/bin/pip" install requests
 fi
 
+# Check for required system dependencies
+echo "Checking for required system dependencies..."
+
+# Check for yt-dlp
+if ! command -v yt-dlp &> /dev/null; then
+    echo "yt-dlp not found. Installing..."
+    # Try to install yt-dlp using pip in the virtual environment
+    "$VENV_PATH/bin/pip" install yt-dlp
+
+    # Create a symlink to make yt-dlp available system-wide
+    echo "Creating symlink for yt-dlp..."
+    sudo ln -sf "$VENV_PATH/bin/yt-dlp" /usr/local/bin/yt-dlp
+else
+    echo "yt-dlp is already installed."
+fi
+
 # Create backup directory
 mkdir -p "$NOSVID_DIR/backups"
 
@@ -41,6 +57,7 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$VENV_PATH/bin
 
 [Install]
 WantedBy=multi-user.target
@@ -63,6 +80,7 @@ StandardOutput=journal
 StandardError=journal
 Environment=PYTHONUNBUFFERED=1
 Environment=GITHUB_WEBHOOK_SECRET=$GITHUB_WEBHOOK_SECRET
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$VENV_PATH/bin
 
 [Install]
 WantedBy=multi-user.target
@@ -84,6 +102,7 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$VENV_PATH/bin
 
 [Install]
 WantedBy=multi-user.target

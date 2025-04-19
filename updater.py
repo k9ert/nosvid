@@ -56,10 +56,10 @@ def create_backup():
     """Create a backup of the current NosVid installation"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = os.path.join(BACKUP_DIR, f"nosvid_backup_{timestamp}")
-    
+
     # Create backup directory if it doesn't exist
     os.makedirs(BACKUP_DIR, exist_ok=True)
-    
+
     # Create a backup of the current code (excluding venv and backups)
     logger.info(f"Creating backup at {backup_path}")
     try:
@@ -77,10 +77,10 @@ def stop_nosvid():
     """Stop the NosVid service"""
     logger.info("Stopping NosVid service")
     success, _ = run_command("sudo systemctl stop nosvid.service")
-    
+
     # Wait a moment to ensure it's stopped
     time.sleep(5)
-    
+
     # Check if it's really stopped
     _, status = run_command("systemctl is-active nosvid.service")
     if "inactive" in status:
@@ -93,20 +93,34 @@ def stop_nosvid():
 def update_nosvid():
     """Update NosVid from GitHub"""
     logger.info("Updating NosVid from GitHub")
-    
+
     # Pull the latest code
     success, _ = run_command("git pull", cwd=NOSVID_DIR)
     if not success:
         logger.error("Failed to pull latest code")
         return False
-    
+
     # Update dependencies
     logger.info("Updating dependencies")
     success, _ = run_command(f"{VENV_PATH}/bin/pip install -e {NOSVID_DIR}", cwd=NOSVID_DIR)
     if not success:
         logger.error("Failed to update dependencies")
         return False
-    
+
+    # Ensure yt-dlp is installed
+    logger.info("Ensuring yt-dlp is installed")
+    success, _ = run_command(f"{VENV_PATH}/bin/pip install yt-dlp", cwd=NOSVID_DIR)
+    if not success:
+        logger.warning("Failed to install yt-dlp via pip, but continuing")
+
+    # Create symlink for yt-dlp if it doesn't exist
+    logger.info("Checking yt-dlp symlink")
+    if not os.path.exists("/usr/local/bin/yt-dlp"):
+        logger.info("Creating symlink for yt-dlp")
+        success, _ = run_command(f"sudo ln -sf {VENV_PATH}/bin/yt-dlp /usr/local/bin/yt-dlp")
+        if not success:
+            logger.warning("Failed to create symlink for yt-dlp, but continuing")
+
     logger.info("NosVid updated successfully")
     return True
 
@@ -114,10 +128,10 @@ def start_nosvid():
     """Start the NosVid service"""
     logger.info("Starting NosVid service")
     success, _ = run_command("sudo systemctl start nosvid.service")
-    
+
     # Wait a moment to ensure it's started
     time.sleep(5)
-    
+
     # Check if it's really started
     _, status = run_command("systemctl is-active nosvid.service")
     if "active" in status:
@@ -130,7 +144,7 @@ def start_nosvid():
 def process_update():
     """Process the update trigger file and update NosVid"""
     logger.info("Processing update")
-    
+
     # Read the trigger file
     try:
         with open(UPDATE_TRIGGER_FILE, 'r') as f:
@@ -138,27 +152,27 @@ def process_update():
         logger.info(f"Trigger file content:\n{trigger_content}")
     except Exception as e:
         logger.error(f"Error reading trigger file: {e}")
-    
+
     # Create a backup
     if not create_backup():
         logger.error("Backup failed, aborting update")
         return False
-    
+
     # Stop NosVid
     if not stop_nosvid():
         logger.warning("Failed to stop NosVid, continuing anyway")
-    
+
     # Update NosVid
     if not update_nosvid():
         logger.error("Update failed, attempting to restart NosVid")
         start_nosvid()
         return False
-    
+
     # Start NosVid
     if not start_nosvid():
         logger.error("Failed to start NosVid after update")
         return False
-    
+
     logger.info("Update completed successfully")
     return True
 
@@ -166,31 +180,31 @@ def check_for_updates():
     """Check if an update is needed"""
     if os.path.exists(UPDATE_TRIGGER_FILE):
         logger.info(f"Found update trigger file: {UPDATE_TRIGGER_FILE}")
-        
+
         # Process the update
         success = process_update()
-        
+
         # Remove the trigger file
         try:
             os.remove(UPDATE_TRIGGER_FILE)
             logger.info("Removed update trigger file")
         except Exception as e:
             logger.error(f"Error removing trigger file: {e}")
-        
+
         return success
-    
+
     return False
 
 def main():
     """Main function"""
     logger.info("Starting NosVid updater")
-    
+
     while True:
         try:
             check_for_updates()
         except Exception as e:
             logger.error(f"Error checking for updates: {e}")
-        
+
         time.sleep(CHECK_INTERVAL)
 
 if __name__ == "__main__":

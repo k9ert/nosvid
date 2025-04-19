@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NosVid - Status</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>NosVid Status</h1>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/status" class="active">Status</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="status-section">
+            <h2>Scheduled Jobs</h2>
+            <div id="jobs-container">
+                <div class="loading">Loading scheduled jobs...</div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2023 NosVid</p>
+        </div>
+    </footer>
+
+    <script>
+        // Fetch scheduled jobs
+        async function loadJobs() {
+            try {
+                const response = await fetch('/api/status/jobs');
+                const data = await response.json();
+                
+                const jobsContainer = document.getElementById('jobs-container');
+                
+                if (data.length === 0) {
+                    jobsContainer.innerHTML = '<p>No scheduled jobs configured.</p>';
+                    return;
+                }
+                
+                let html = '<table class="jobs-table">';
+                html += '<thead><tr><th>ID</th><th>Description</th><th>Command</th><th>Schedule</th><th>Next Run</th></tr></thead>';
+                html += '<tbody>';
+                
+                data.forEach(job => {
+                    const nextRun = job.next_run ? new Date(job.next_run).toLocaleString() : 'Not scheduled';
+                    const args = job.args.length > 0 ? job.args.join(' ') : '';
+                    
+                    html += `<tr>
+                        <td>${job.id}</td>
+                        <td>${job.description}</td>
+                        <td><code>./nosvid ${job.command} ${args}</code></td>
+                        <td><code>${job.schedule}</code></td>
+                        <td>${nextRun}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                jobsContainer.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading jobs:', error);
+                document.getElementById('jobs-container').innerHTML = '<p class="error">Error loading scheduled jobs.</p>';
+            }
+        }
+        
+        // Load jobs when the page loads
+        document.addEventListener('DOMContentLoaded', loadJobs);
+    </script>
+</body>
+</html>

@@ -5,6 +5,7 @@ Utility functions for finding the oldest video that meets a specific condition
 from typing import Dict, Any, Optional, Callable
 
 from ..metadata.list import list_videos
+from ..utils.filesystem import get_video_dir
 
 
 def find_oldest_video(videos_dir: str, condition: Callable[[Dict[str, Any]], bool]) -> Optional[Dict[str, Any]]:
@@ -72,3 +73,77 @@ def find_oldest_not_posted(videos_dir: str) -> Optional[Dict[str, Any]]:
         return video['downloaded'] and not has_nostr
 
     return find_oldest_video(videos_dir, not_posted)
+
+
+def find_oldest_video_without_download(channel_id: str) -> Optional[str]:
+    """
+    Find the oldest video that hasn't been downloaded yet
+
+    Args:
+        channel_id: Channel ID
+
+    Returns:
+        The video ID of the oldest video that hasn't been downloaded yet, or None if all videos have been downloaded
+    """
+    videos_dir = get_video_dir(channel_id)
+    video = find_oldest_not_downloaded(videos_dir)
+    return video['video_id'] if video else None
+
+
+def find_oldest_video_without_nostr_post(channel_id: str) -> Optional[str]:
+    """
+    Find the oldest video that hasn't been posted to Nostr yet
+
+    Args:
+        channel_id: Channel ID
+
+    Returns:
+        The video ID of the oldest video that hasn't been posted to Nostr yet, or None if all videos have been posted
+    """
+    videos_dir = get_video_dir(channel_id)
+    video = find_oldest_not_posted(videos_dir)
+    return video['video_id'] if video else None
+
+
+def find_oldest_not_uploaded_to_nostrmedia(videos_dir: str) -> Optional[Dict[str, Any]]:
+    """
+    Find the oldest video that hasn't been uploaded to nostrmedia yet
+
+    Args:
+        videos_dir: Directory containing videos
+
+    Returns:
+        The oldest video that hasn't been uploaded to nostrmedia yet, or None if all videos have been uploaded
+    """
+    def not_uploaded_to_nostrmedia(video: Dict[str, Any]) -> bool:
+        # Check if the video has been downloaded
+        if not video['downloaded']:
+            return False
+
+        # Check if the video has been uploaded to nostrmedia
+        has_nostrmedia = False
+        if 'platforms' in video and 'nostrmedia' in video.get('platforms', {}):
+            # Check if there is a URL in the nostrmedia platform
+            nostrmedia_data = video['platforms']['nostrmedia']
+            if 'url' in nostrmedia_data and nostrmedia_data['url']:
+                has_nostrmedia = True
+
+        # Return True if the video has been downloaded but not uploaded to nostrmedia
+        return video['downloaded'] and not has_nostrmedia
+
+    return find_oldest_video(videos_dir, not_uploaded_to_nostrmedia)
+
+
+def find_oldest_video_without_nostrmedia(channel_id: str) -> Optional[str]:
+    """
+    Find the oldest video that hasn't been uploaded to nostrmedia yet
+
+    Args:
+        channel_id: Channel ID
+
+    Returns:
+        The video ID of the oldest video that hasn't been uploaded to nostrmedia yet, or None if all videos have been uploaded
+    """
+    videos_dir = get_video_dir(channel_id)
+    video = find_oldest_not_uploaded_to_nostrmedia(videos_dir)
+    return video['video_id'] if video else None

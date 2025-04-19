@@ -9,11 +9,18 @@ from datetime import datetime
 
 from ..services.config_service import ConfigService
 from ..services.video_service import VideoService, download_status
+from ..services.scheduler_service import SchedulerService
 from ..repo.video_repo import FileSystemVideoRepo
 from ..models.video import Video, Platform, NostrPost
 
+# Import routers
+from .status import router as status_router
+
 # Create FastAPI application
 app = FastAPI(title="NosVid API", version="1.0.0")
+
+# Include routers
+app.include_router(status_router, prefix="/status", tags=["status"])
 
 # Models for API
 class NostrPostResponse(BaseModel):

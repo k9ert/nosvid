@@ -157,6 +157,16 @@ def get_youtube_cookies_file():
         return os.path.expanduser(config['youtube']['cookies_file'])
     return None
 
+def get_channel_id():
+    """
+    Get the channel ID for Einundzwanzig
+
+    Returns:
+        Channel ID for Einundzwanzig
+    """
+    # Hardcoded channel ID for Einundzwanzig
+    return "UCxSRxq14XIoMbFDEjMOPU5Q"
+
 def get_default_download_delay():
     """
     Get the default download delay
@@ -168,3 +178,27 @@ def get_default_download_delay():
     if 'defaults' in config and 'download_delay' in config['defaults']:
         return config['defaults']['download_delay']
     return 5
+
+def get_youtube_api_key():
+    """
+    Get the YouTube API key from config
+
+    Returns:
+        YouTube API key or None if not configured
+    """
+    config = load_config()
+    if 'youtube' in config and 'api_key' in config['youtube']:
+        return config['youtube']['api_key']
+    return None
+
+def get_repository_dir():
+    """
+    Get the repository directory from config
+
+    Returns:
+        Repository directory or './repository' if not configured
+    """
+    config = load_config()
+    if 'defaults' in config and 'repository_dir' in config['defaults']:
+        return config['defaults']['repository_dir']
+    return './repository'

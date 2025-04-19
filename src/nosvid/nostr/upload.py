@@ -18,6 +18,146 @@ except ImportError as e:
     print("Warning: nostr-sdk package not available. Nostr upload functionality will be limited.")
 
 from ..utils.config import get_nostr_key, get_nostr_relays, load_config
+from ..utils.filesystem import get_video_dir, get_platform_dir, load_json_file, save_json_file
+from ..nostrmedia.upload import upload_to_nostrmedia
+import os.path
+
+def post_to_nostr(video_id, channel_id, debug=False):
+    """
+    Post a video to Nostr, handling all the necessary steps
+
+    Args:
+        video_id: YouTube video ID
+        channel_id: Channel ID
+        debug: Whether to print debug information
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        if debug:
+            print(f"Posting video {video_id} to Nostr")
+
+        # Get the video directory
+        video_dir = os.path.join(get_video_dir(channel_id), video_id)
+
+        # Check if the video exists
+        if not os.path.exists(video_dir):
+            print(f"Video directory not found: {video_dir}")
+            return False
+
+        # Load the metadata
+        metadata_path = os.path.join(video_dir, "metadata.json")
+        if not os.path.exists(metadata_path):
+            print(f"Metadata file not found: {metadata_path}")
+            return False
+
+        metadata = load_json_file(metadata_path)
+
+        # Check if the video has been downloaded
+        youtube_dir = os.path.join(video_dir, "youtube")
+        video_files = [f for f in os.listdir(youtube_dir) if f.endswith(".mp4")] if os.path.exists(youtube_dir) else []
+
+        if not video_files:
+            print(f"No video files found in {youtube_dir}")
+            print("Downloading video first...")
+            from ..download.video import download_video
+            download_result = download_video(video_id, channel_id)
+            if not download_result:
+                print("Failed to download video")
+                return False
+
+            # Refresh the list of video files
+            video_files = [f for f in os.listdir(youtube_dir) if f.endswith(".mp4")]
+
+        # Get the video file path
+        video_file = video_files[0] if video_files else None
+        if not video_file:
+            print("No video file found after download attempt")
+            return False
+
+        video_path = os.path.join(youtube_dir, video_file)
+
+        # Check if the video has been uploaded to nostrmedia
+        nostrmedia_url = None
+        if 'platforms' in metadata and 'nostrmedia' in metadata['platforms'] and 'url' in metadata['platforms']['nostrmedia']:
+            nostrmedia_url = metadata['platforms']['nostrmedia']['url']
+
+        if not nostrmedia_url:
+            print("Video not uploaded to nostrmedia yet")
+            print("Uploading to nostrmedia first...")
+
+            # Upload to nostrmedia
+            nostrmedia_result = upload_to_nostrmedia(video_id, channel_id, debug=debug)
+            if not nostrmedia_result or not nostrmedia_result.get('success'):
+                print("Failed to upload to nostrmedia")
+                return False
+
+            # Get the nostrmedia URL
+            nostrmedia_url = nostrmedia_result.get('url')
+            if not nostrmedia_url:
+                print("No nostrmedia URL returned")
+                return False
+
+            # Update the metadata
+            metadata['platforms'] = metadata.get('platforms', {})
+            metadata['platforms']['nostrmedia'] = {
+                'url': nostrmedia_url,
+                'uploaded_at': datetime.now().isoformat()
+            }
+            save_json_file(metadata_path, metadata)
+
+        # Prepare metadata for nostr
+        nostr_metadata = {
+            'title': metadata.get('title', ''),
+            'full_description': metadata.get('description', ''),
+            'published_at': metadata.get('published_at', ''),
+            'channel_title': metadata.get('channel_title', ''),
+            'video_id': video_id,
+            'youtube_url': f"https://www.youtube.com/watch?v={video_id}",
+            'nostrmedia_url': nostrmedia_url
+        }
+
+        # Upload to nostr
+        nostr_result = upload_to_nostr(video_path, nostr_metadata, debug=debug)
+        if not nostr_result or not nostr_result.get('success'):
+            print(f"Failed to upload to nostr: {nostr_result.get('error') if nostr_result else 'Unknown error'}")
+            return False
+
+        # Update the metadata with nostr information
+        nostr_dir = os.path.join(video_dir, "nostr")
+        os.makedirs(nostr_dir, exist_ok=True)
+
+        # Create or update the nostr metadata file
+        nostr_metadata_path = os.path.join(nostr_dir, "metadata.json")
+        nostr_metadata = load_json_file(nostr_metadata_path) if os.path.exists(nostr_metadata_path) else {}
+
+        # Add the new post to the posts array
+        nostr_metadata['posts'] = nostr_metadata.get('posts', [])
+        nostr_metadata['posts'].append({
+            'event_id': nostr_result.get('event_id'),
+            'pubkey': nostr_result.get('pubkey'),
+            'uploaded_at': datetime.now().isoformat(),
+            'nostr_uri': nostr_result.get('nostr_uri'),
+            'links': nostr_result.get('links', {})
+        })
+
+        # Save the nostr metadata
+        save_json_file(nostr_metadata_path, nostr_metadata)
+
+        # Update the main metadata file
+        metadata['platforms'] = metadata.get('platforms', {})
+        metadata['platforms']['nostr'] = {
+            'posts': nostr_metadata['posts']
+        }
+        save_json_file(metadata_path, metadata)
+
+        print(f"Successfully posted video {video_id} to Nostr")
+        return True
+
+    except Exception as e:
+        print(f"Error posting to Nostr: {str(e)}")
+        return False
 
 def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
     """

@@ -12,6 +12,9 @@ from ..models.video import Video, Platform
 from ..models.result import Result
 from ..repo.video_repo import VideoRepo
 from ..download.video import download_video as download_video_func
+from ..platforms.nostrmedia import upload_video_to_nostrmedia as upload_nostrmedia_func, update_nostrmedia_metadata
+from ..utils.filesystem import get_platform_dir, get_video_dir
+from ..platforms.youtube import find_youtube_video_file
 
 # Global download lock to prevent concurrent downloads
 download_lock = threading.Lock()
@@ -252,6 +255,135 @@ class VideoService:
                 return Result.success(True)
             else:
                 return Result.failure("Failed to save video")
+        except Exception as e:
+            return Result.failure(str(e))
+
+    def upload_to_nostrmedia(self, video_id: str, channel_title: str, private_key: str = None, debug: bool = False) -> Result[bool]:
+        """
+        Upload a video to nostrmedia.com
+
+        Args:
+            video_id: ID of the video
+            channel_title: Title of the channel
+            private_key: Private key string (hex or nsec format)
+            debug: Whether to print debug information
+
+        Returns:
+            Result indicating success or failure
+        """
+        try:
+            # Get the video
+            video_result = self.get_video(video_id, channel_title)
+            if not video_result.success:
+                return Result.failure(f"Failed to get video: {video_result.error}")
+
+            video = video_result.data
+            if not video:
+                return Result.failure(f"Video not found: {video_id}")
+
+            # Check if the video has been downloaded from YouTube
+            if 'youtube' not in video.platforms or not video.platforms['youtube'].downloaded:
+                return Result.failure(f"Video has not been downloaded from YouTube yet. Download it first.")
+
+            # Get the video file
+            videos_dir = os.path.join(self.video_repository.base_dir, channel_title, "videos")
+            video_dir = get_video_dir(videos_dir, video_id)
+            video_file = find_youtube_video_file(video_dir)
+
+            if not video_file:
+                return Result.failure(f"No video file found for {video_id}")
+
+            # Upload the video to nostrmedia
+            result = upload_nostrmedia_func(video_file, private_key, debug=debug)
+
+            if not result['success']:
+                return Result.failure(f"Failed to upload to nostrmedia: {result.get('error', 'Unknown error')}")
+
+            # Create nostrmedia-specific metadata
+            nostrmedia_metadata = {
+                'url': result['url'],
+                'hash': result['hash'],
+                'uploaded_at': result.get('uploaded_at', datetime.now().isoformat())
+            }
+
+            # Save nostrmedia-specific metadata
+            nostrmedia_dir = get_platform_dir(video_dir, 'nostrmedia')
+            os.makedirs(nostrmedia_dir, exist_ok=True)
+            update_nostrmedia_metadata(video_dir, nostrmedia_metadata)
+
+            # Update the video object
+            if 'nostrmedia' not in video.platforms:
+                video.platforms['nostrmedia'] = Platform(
+                    name="nostrmedia",
+                    url=result['url']
+                )
+
+            video.platforms['nostrmedia'].uploaded = True
+            video.platforms['nostrmedia'].uploaded_at = result.get('uploaded_at', datetime.now().isoformat())
+
+            # Save the updated video
+            save_result = self.save_video(video, channel_title)
+            if not save_result.success:
+                return Result.failure(f"Failed to save video metadata: {save_result.error}")
+
+            return Result.success(True)
+        except Exception as e:
+            return Result.failure(str(e))
+
+    def set_nostrmedia_url(self, video_id: str, channel_title: str, url: str, hash_value: str = None, uploaded_at: str = None) -> Result[bool]:
+        """
+        Set an existing nostrmedia URL for a video
+
+        Args:
+            video_id: ID of the video
+            channel_title: Title of the channel
+            url: Nostrmedia URL
+            hash_value: Hash of the video file (optional)
+            uploaded_at: When the video was uploaded (optional)
+
+        Returns:
+            Result indicating success or failure
+        """
+        try:
+            # Get the video
+            video_result = self.get_video(video_id, channel_title)
+            if not video_result.success:
+                return Result.failure(f"Failed to get video: {video_result.error}")
+
+            video = video_result.data
+            if not video:
+                return Result.failure(f"Video not found: {video_id}")
+
+            # Create nostrmedia-specific metadata
+            nostrmedia_metadata = {
+                'url': url,
+                'hash': hash_value,
+                'uploaded_at': uploaded_at or datetime.now().isoformat()
+            }
+
+            # Save nostrmedia-specific metadata
+            videos_dir = os.path.join(self.video_repository.base_dir, channel_title, "videos")
+            video_dir = get_video_dir(videos_dir, video_id)
+            nostrmedia_dir = get_platform_dir(video_dir, 'nostrmedia')
+            os.makedirs(nostrmedia_dir, exist_ok=True)
+            update_nostrmedia_metadata(video_dir, nostrmedia_metadata)
+
+            # Update the video object
+            if 'nostrmedia' not in video.platforms:
+                video.platforms['nostrmedia'] = Platform(
+                    name="nostrmedia",
+                    url=url
+                )
+
+            video.platforms['nostrmedia'].uploaded = True
+            video.platforms['nostrmedia'].uploaded_at = uploaded_at or datetime.now().isoformat()
+
+            # Save the updated video
+            save_result = self.save_video(video, channel_title)
+            if not save_result.success:
+                return Result.failure(f"Failed to save video metadata: {save_result.error}")
+
+            return Result.success(True)
         except Exception as e:
             return Result.failure(str(e))
 

@@ -71,6 +71,17 @@ class DownloadResponse(BaseModel):
     success: bool
     message: str
 
+class NostrmediaUploadRequest(BaseModel):
+    """Request model for uploading a video to nostrmedia"""
+    private_key: Optional[str] = None
+    debug: bool = False
+
+class NostrmediaUrlRequest(BaseModel):
+    """Request model for providing an existing nostrmedia URL"""
+    url: str
+    hash: Optional[str] = None
+    uploaded_at: Optional[str] = None
+
 class DownloadStatusResponse(BaseModel):
     """Response model for checking download status"""
     in_progress: bool
@@ -209,15 +220,15 @@ def get_video(
 
     return video_dict
 
-@app.post("/videos/{video_id}/download", response_model=DownloadResponse, tags=["videos"])
-def download_video(
+@app.post("/videos/{video_id}/platforms/youtube/download", response_model=DownloadResponse, tags=["videos"])
+def download_youtube_video(
     video_id: str,
     request: DownloadRequest,
     channel_title: str = Depends(get_channel_title),
     video_service: VideoService = Depends(get_video_service)
 ):
     """
-    Download a video
+    Download a video from YouTube
     """
     # Generate a simple user identifier (in a real app, this would be a session ID or user ID)
     user_id = f"user-{datetime.now().timestamp()}"
@@ -229,7 +240,95 @@ def download_video(
 
     return {
         "success": True,
-        "message": f"Video {video_id} downloaded successfully"
+        "message": f"Video {video_id} downloaded successfully from YouTube"
+    }
+
+# Keep the old endpoint for backward compatibility, but mark it as deprecated
+@app.post("/videos/{video_id}/download", response_model=DownloadResponse, tags=["videos"], deprecated=True)
+def download_video(
+    video_id: str,
+    request: DownloadRequest,
+    channel_title: str = Depends(get_channel_title),
+    video_service: VideoService = Depends(get_video_service)
+):
+    """
+    Download a video (deprecated, use /videos/{video_id}/platforms/youtube/download instead)
+    """
+    return download_youtube_video(video_id, request, channel_title, video_service)
+
+@app.post("/videos/{video_id}/platforms/nostrmedia/upload", response_model=DownloadResponse, tags=["videos"])
+def upload_to_nostrmedia(
+    video_id: str,
+    request: NostrmediaUploadRequest,
+    channel_title: str = Depends(get_channel_title),
+    video_service: VideoService = Depends(get_video_service)
+):
+    """
+    Upload a video to nostrmedia.com
+    """
+    # First, check if the video exists and has been downloaded
+    video_result = video_service.get_video(video_id, channel_title)
+
+    if not video_result.success:
+        raise HTTPException(status_code=500, detail=video_result.error)
+
+    video = video_result.data
+    if not video:
+        raise HTTPException(status_code=404, detail=f"Video {video_id} not found")
+
+    # Check if the video has been downloaded from YouTube
+    if 'youtube' not in video.platforms or not video.platforms['youtube'].downloaded:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Video {video_id} has not been downloaded from YouTube yet. Download it first."
+        )
+
+    # Upload to nostrmedia
+    result = video_service.upload_to_nostrmedia(video_id, channel_title, request.private_key, request.debug)
+
+    if not result.success:
+        raise HTTPException(status_code=500, detail=result.error)
+
+    return {
+        "success": True,
+        "message": f"Video {video_id} uploaded successfully to nostrmedia.com"
+    }
+
+@app.post("/videos/{video_id}/platforms/nostrmedia", response_model=DownloadResponse, tags=["videos"])
+def set_nostrmedia_url(
+    video_id: str,
+    request: NostrmediaUrlRequest,
+    channel_title: str = Depends(get_channel_title),
+    video_service: VideoService = Depends(get_video_service)
+):
+    """
+    Set an existing nostrmedia URL for a video
+    """
+    # First, check if the video exists
+    video_result = video_service.get_video(video_id, channel_title)
+
+    if not video_result.success:
+        raise HTTPException(status_code=500, detail=video_result.error)
+
+    video = video_result.data
+    if not video:
+        raise HTTPException(status_code=404, detail=f"Video {video_id} not found")
+
+    # Set the nostrmedia URL
+    result = video_service.set_nostrmedia_url(
+        video_id,
+        channel_title,
+        request.url,
+        request.hash,
+        request.uploaded_at or datetime.now().isoformat()
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=500, detail=result.error)
+
+    return {
+        "success": True,
+        "message": f"Nostrmedia URL set successfully for video {video_id}"
     }
 
 @app.get("/download/status", response_model=DownloadStatusResponse, tags=["videos"])

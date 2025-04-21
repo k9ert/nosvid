@@ -11,7 +11,7 @@ INSTALL_REQUIRES = [
     "pyyaml>=6.0.1",
     "yt-dlp>=2025.3.31",
     "requests>=2.25.0",
-    "PyJWT>=2.6.0",
+    "PyJWT>=2.6.0",  # Specifically PyJWT, not the 'jwt' package
 
     # Nostr dependencies
     "nostr-sdk>=0.41.0",

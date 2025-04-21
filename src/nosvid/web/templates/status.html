@@ -4,78 +4,244 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NosVid - Status</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <script src="/static/js/main.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --e21-orange: #f7931a;
+            --e21-blue: #0c71c3;
+            --e21-purple: #8e44ad;
+            --e21-green: #27ae60;
+            --e21-red: #e74c3c;
+        }
+        body {
+            background-color: #121212;
+            color: #f5f5f5;
+        }
+        .navbar {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background-color: #1e1e1e;
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #2d2d2d;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0 !important;
+        }
+        .table {
+            color: #f5f5f5;
+        }
+        .table-dark {
+            background-color: #2d2d2d;
+        }
+        .btn-toggle {
+            min-width: 100px;
+        }
+        .badge-enabled {
+            background-color: var(--e21-green);
+        }
+        .badge-disabled {
+            background-color: var(--e21-red);
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>NosVid Status</h1>
-            <nav>
-                <ul>
-                    <li><a href="/">Home</a></li>
-                    <li><a href="/status" class="active">Status</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
-
-    <main class="container">
-        <section class="status-section">
-            <h2>Scheduled Jobs</h2>
-            <div id="jobs-container">
-                <div class="loading">Loading scheduled jobs...</div>
+    <div class="container mt-4">
+        <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">NosVid</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" href="/status">Scheduled Jobs</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
-        </section>
-    </main>
+        </nav>
 
-    <footer>
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Scheduled Jobs</h5>
+                <button id="refresh-button" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+            </div>
+            <div class="card-body">
+                <div id="jobs-container">
+                    <div class="d-flex justify-content-center">
+                        <div class="spinner-border text-light" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container for notifications -->
+    <div class="toast-container"></div>
+
+    <footer class="mt-5 mb-3 text-center text-muted">
         <div class="container">
             <p>&copy; 2023 NosVid</p>
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Fetch scheduled jobs
         async function loadJobs() {
             try {
                 const response = await fetch('/api/status/jobs');
                 const data = await response.json();
-                
+
                 const jobsContainer = document.getElementById('jobs-container');
-                
+
                 if (data.length === 0) {
-                    jobsContainer.innerHTML = '<p>No scheduled jobs configured.</p>';
+                    jobsContainer.innerHTML = '<div class="alert alert-info">No scheduled jobs configured.</div>';
                     return;
                 }
-                
-                let html = '<table class="jobs-table">';
-                html += '<thead><tr><th>ID</th><th>Description</th><th>Command</th><th>Schedule</th><th>Next Run</th></tr></thead>';
+
+                let html = '<div class="table-responsive">';
+                html += '<table class="table table-dark table-striped table-hover">';
+                html += '<thead><tr><th>ID</th><th>Description</th><th>Command</th><th>Schedule</th><th>Next Run</th><th>Status</th><th>Actions</th></tr></thead>';
                 html += '<tbody>';
-                
+
                 data.forEach(job => {
                     const nextRun = job.next_run ? new Date(job.next_run).toLocaleString() : 'Not scheduled';
                     const args = job.args.length > 0 ? job.args.join(' ') : '';
-                    
+                    const statusBadge = job.enabled ?
+                        '<span class="badge badge-enabled">Enabled</span>' :
+                        '<span class="badge badge-disabled">Disabled</span>';
+                    const toggleButton = job.enabled ?
+                        `<button class="btn btn-sm btn-outline-danger btn-toggle" data-job-id="${job.id}" data-action="disable">Disable</button>` :
+                        `<button class="btn btn-sm btn-outline-success btn-toggle" data-job-id="${job.id}" data-action="enable">Enable</button>`;
+
                     html += `<tr>
                         <td>${job.id}</td>
                         <td>${job.description}</td>
                         <td><code>./nosvid ${job.command} ${args}</code></td>
                         <td><code>${job.schedule}</code></td>
                         <td>${nextRun}</td>
+                        <td>${statusBadge}</td>
+                        <td>${toggleButton}</td>
                     </tr>`;
                 });
-                
-                html += '</tbody></table>';
+
+                html += '</tbody></table></div>';
                 jobsContainer.innerHTML = html;
+
+                // Add event listeners to toggle buttons
+                document.querySelectorAll('.btn-toggle').forEach(button => {
+                    button.addEventListener('click', toggleJobStatus);
+                });
             } catch (error) {
                 console.error('Error loading jobs:', error);
-                document.getElementById('jobs-container').innerHTML = '<p class="error">Error loading scheduled jobs.</p>';
+                document.getElementById('jobs-container').innerHTML = '<div class="alert alert-danger">Error loading scheduled jobs.</div>';
             }
         }
-        
-        // Load jobs when the page loads
-        document.addEventListener('DOMContentLoaded', loadJobs);
+
+        // Toggle job status (enable/disable)
+        async function toggleJobStatus(event) {
+            const button = event.target;
+            const jobId = button.dataset.jobId;
+            const action = button.dataset.action;
+
+            try {
+                // Disable the button while the request is in progress
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+
+                // Send the request to enable/disable the job
+                const response = await fetch(`/api/status/jobs/${jobId}/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Failed to ${action} job`);
+                }
+
+                // Show success toast
+                showToast(`Job ${jobId} ${action}d successfully`, 'success');
+
+                // Reload the jobs list
+                loadJobs();
+            } catch (error) {
+                console.error(`Error ${action}ing job:`, error);
+                showToast(error.message, 'danger');
+
+                // Re-enable the button
+                button.disabled = false;
+                button.innerHTML = action === 'enable' ? 'Enable' : 'Disable';
+            }
+        }
+
+        // Show a toast notification
+        function showToast(message, type = 'info') {
+            const toastContainer = document.querySelector('.toast-container');
+
+            const toastElement = document.createElement('div');
+            toastElement.className = `toast align-items-center text-white bg-${type} border-0`;
+            toastElement.setAttribute('role', 'alert');
+            toastElement.setAttribute('aria-live', 'assertive');
+            toastElement.setAttribute('aria-atomic', 'true');
+
+            toastElement.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            toastContainer.appendChild(toastElement);
+
+            const toast = new bootstrap.Toast(toastElement, {
+                autohide: true,
+                delay: 3000
+            });
+
+            toast.show();
+
+            // Remove the toast element after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
+
+        // Refresh button handler
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load jobs when the page loads
+            loadJobs();
+
+            // Add event listener to refresh button
+            document.getElementById('refresh-button').addEventListener('click', () => {
+                loadJobs();
+                showToast('Jobs refreshed', 'info');
+            });
+        });
     </script>
 </body>
 </html>

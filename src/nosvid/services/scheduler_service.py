@@ -647,6 +647,98 @@ class SchedulerService:
 
         return self.jobs.get(job_id)
 
+    def enable_job(self, job_id: str) -> bool:
+        """
+        Enable a job
+
+        Args:
+            job_id: ID of the job
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if job_id not in self.jobs:
+                logger.error(f"Job {job_id} not found")
+                return False
+
+            # Get the job info
+            job_info = self.jobs[job_id]
+
+            # Resume the job if it exists
+            job = self.scheduler.get_job(job_id)
+            if job:
+                self.scheduler.resume_job(job_id)
+            else:
+                # Re-add the job if it doesn't exist
+                cron_expression = job_info['schedule']
+                command = job_info['command']
+
+                # Determine which function to call based on the command
+                if command == 'sync':
+                    if 'force-refresh' in job_info['args']:
+                        func = self._run_sync_job
+                    else:
+                        func = self._run_regular_sync_job
+                elif command == 'download':
+                    if '--oldest' in job_info['args']:
+                        func = self._run_download_job
+                    else:
+                        func = self._run_regular_download_job
+                elif command == 'nostr':
+                    func = self._run_nostr_job
+                elif command == 'nostrmedia':
+                    func = self._run_regular_nostrmedia_job
+                else:
+                    logger.error(f"Unknown command: {command}")
+                    return False
+
+                # Add the job to the scheduler
+                job = self.scheduler.add_job(
+                    func,
+                    trigger=CronTrigger.from_crontab(cron_expression),
+                    id=job_id,
+                    replace_existing=True
+                )
+
+            # Update the job info
+            self.jobs[job_id]['enabled'] = True
+            if job and job.next_run_time:
+                self.jobs[job_id]['next_run'] = job.next_run_time.isoformat()
+
+            logger.info(f"Enabled job {job_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error enabling job {job_id}: {str(e)}")
+            return False
+
+    def disable_job(self, job_id: str) -> bool:
+        """
+        Disable a job
+
+        Args:
+            job_id: ID of the job
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if job_id not in self.jobs:
+                logger.error(f"Job {job_id} not found")
+                return False
+
+            # Pause the job
+            self.scheduler.pause_job(job_id)
+
+            # Update the job info
+            self.jobs[job_id]['enabled'] = False
+
+            logger.info(f"Disabled job {job_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error disabling job {job_id}: {str(e)}")
+            return False
+
     def shutdown(self):
         """
         Shutdown the scheduler

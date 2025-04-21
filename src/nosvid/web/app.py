@@ -5,9 +5,10 @@ Web application for nosvid
 import os
 import logging
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.openapi.docs import get_swagger_ui_html
 
 from ..api.app import app as api_app
 from ..services.scheduler_service import SchedulerService
@@ -16,7 +17,12 @@ from ..services.scheduler_service import SchedulerService
 logger = logging.getLogger(__name__)
 
 # Create FastAPI application
-app = FastAPI(title="NosVid Web", version="1.0.0")
+app = FastAPI(
+    title="NosVid Web",
+    version="1.0.0",
+    docs_url=None,  # Disable default /docs endpoint
+    redoc_url=None  # Disable default /redoc endpoint
+)
 
 # Mount API
 app.mount("/api", api_app)
@@ -44,6 +50,18 @@ async def status(request: Request):
         "request": request,
         "cronjobs_enabled": cronjobs_enabled
     })
+
+@app.get("/swagger", include_in_schema=False)
+async def swagger_ui_html():
+    """
+    Serve Swagger UI for API documentation
+    """
+    return get_swagger_ui_html(
+        openapi_url="/api/openapi.json",
+        title="NosVid API Documentation",
+        swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
+        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
+    )
 
 def run(port=8000, with_cronjobs=False):
     """

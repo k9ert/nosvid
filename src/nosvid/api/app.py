@@ -17,7 +17,16 @@ from ..models.video import Video, Platform, NostrPost
 from .status import router as status_router
 
 # Create FastAPI application
-app = FastAPI(title="NosVid API", version="1.0.0")
+app = FastAPI(
+    title="NosVid API",
+    version="1.0.0",
+    description="API for managing YouTube videos with NosVid",
+    openapi_tags=[
+        {"name": "videos", "description": "Operations with videos"},
+        {"name": "status", "description": "Status and scheduled jobs"},
+        {"name": "statistics", "description": "Repository statistics"}
+    ]
+)
 
 # Include routers
 app.include_router(status_router, prefix="/status", tags=["status"])
@@ -98,7 +107,7 @@ def get_channel_title(config_service: ConfigService = Depends(get_config_service
     return config_service.get_channel_title()
 
 # Routes
-@app.get("/videos", response_model=VideoListResponse)
+@app.get("/videos", response_model=VideoListResponse, tags=["videos"])
 def list_videos(
     limit: Optional[int] = Query(None, description="Maximum number of videos to return"),
     offset: int = Query(0, description="Number of videos to skip"),
@@ -164,7 +173,7 @@ def list_videos(
         "limit": limit
     }
 
-@app.get("/videos/{video_id}", response_model=VideoResponse)
+@app.get("/videos/{video_id}", response_model=VideoResponse, tags=["videos"])
 def get_video(
     video_id: str,
     channel_title: str = Depends(get_channel_title),
@@ -200,7 +209,7 @@ def get_video(
 
     return video_dict
 
-@app.post("/videos/{video_id}/download", response_model=DownloadResponse)
+@app.post("/videos/{video_id}/download", response_model=DownloadResponse, tags=["videos"])
 def download_video(
     video_id: str,
     request: DownloadRequest,
@@ -223,14 +232,14 @@ def download_video(
         "message": f"Video {video_id} downloaded successfully"
     }
 
-@app.get("/download/status", response_model=DownloadStatusResponse)
+@app.get("/download/status", response_model=DownloadStatusResponse, tags=["videos"])
 def get_download_status():
     """
     Get the current download status
     """
     return download_status
 
-@app.get("/statistics", response_model=StatisticsResponse)
+@app.get("/statistics", response_model=StatisticsResponse, tags=["statistics"])
 def get_statistics(
     channel_title: str = Depends(get_channel_title),
     video_service: VideoService = Depends(get_video_service)

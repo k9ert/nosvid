@@ -4,19 +4,16 @@ NosVid Updater
 
 This script watches for the update trigger file and updates NosVid when needed.
 It should be run as a separate service from NosVid.
-It uses GitHub App authentication with PEM keys to pull the latest changes.
+It uses a simple deploy key approach for authentication.
 """
 
 import os
 import sys
 import time
-import json
 import logging
 import subprocess
-import requests
-import sys
-import jwt  # This should be PyJWT, not the 'jwt' package
-from datetime import datetime, timedelta
+import shutil
+from datetime import datetime
 import argparse
 
 # Configuration
@@ -37,138 +34,81 @@ logging.basicConfig(
 )
 logger = logging.getLogger('updater')
 
-class GitHubAppAuth:
+def stop_decdata():
     """
-    GitHub App authentication helper
+    Stop the DecData service
     """
-    def __init__(self, app_id, private_key_path, installation_id):
-        """
-        Initialize the GitHub App authentication
-
-        Args:
-            app_id: GitHub App ID
-            private_key_path: Path to the private key file (.pem)
-            installation_id: Installation ID for the repository
-        """
-        self.app_id = app_id
-        self.private_key_path = private_key_path
-        self.installation_id = installation_id
-        self.access_token = None
-        self.token_expires_at = None
-
-    def _generate_jwt(self):
-        """
-        Generate a JWT for GitHub App authentication
-
-        Returns:
-            JWT token string
-        """
-        now = datetime.now()
-        expiration = now + timedelta(minutes=10)  # Token valid for 10 minutes
-
-        with open(self.private_key_path, 'rb') as key_file:
-            private_key = key_file.read()
-
-        payload = {
-            'iat': int(now.timestamp()),
-            'exp': int(expiration.timestamp()),
-            'iss': self.app_id
-        }
-
-        token = jwt.encode(payload, private_key, algorithm='RS256')
-        return token
-
-    def get_access_token(self):
-        """
-        Get an access token for the GitHub App installation
-
-        Returns:
-            Access token string
-        """
-        # Check if we have a valid token
-        now = datetime.now()
-        if self.access_token and self.token_expires_at and now < self.token_expires_at:
-            return self.access_token
-
-        # Generate a new token
-        jwt_token = self._generate_jwt()
-
-        response = requests.post(
-            f"https://api.github.com/app/installations/{self.installation_id}/access_tokens",
-            headers={
-                "Accept": "application/vnd.github.v3+json",
-                "Authorization": f"Bearer {jwt_token}"
-            }
+    logger.info("Stopping DecData service")
+    try:
+        subprocess.run(
+            "sudo systemctl stop decdata.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
         )
 
-        if response.status_code != 201:
-            logger.error(f"Failed to get access token: {response.status_code} {response.text}")
-            return None
+        # Wait a moment to ensure it's stopped
+        time.sleep(5)
 
-        data = response.json()
-        self.access_token = data['token']
-        # Token expires in 1 hour, but we'll refresh it after 50 minutes
-        self.token_expires_at = now + timedelta(minutes=50)
+        # Check if it's really stopped
+        status_result = subprocess.run(
+            "systemctl is-active decdata.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
 
-        return self.access_token
-
-class RepositoryUpdater:
-    """
-    Repository updater
-    """
-    def __init__(self, repo_path, repo_owner, repo_name, auth):
-        """
-        Initialize the repository updater
-
-        Args:
-            repo_path: Path to the local repository
-            repo_owner: GitHub repository owner (username or organization)
-            repo_name: GitHub repository name
-            auth: GitHubAppAuth instance
-        """
-        self.repo_path = repo_path
-        self.repo_owner = repo_owner
-        self.repo_name = repo_name
-        self.auth = auth
-
-    def update(self):
-        """
-        Update the repository by pulling the latest changes
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            # Get access token
-            access_token = self.auth.get_access_token()
-            if not access_token:
-                logger.error("Failed to get access token")
-                return False
-
-            # Construct the remote URL with the access token
-            remote_url = f"https://{access_token}@github.com/{self.repo_owner}/{self.repo_name}.git"
-
-            # Change to the repository directory
-            os.chdir(self.repo_path)
-
-            # Pull the latest changes
-            logger.info(f"Pulling latest changes for {self.repo_owner}/{self.repo_name}")
-            result = subprocess.run(
-                ["git", "pull", remote_url],
-                capture_output=True,
-                text=True
-            )
-
-            if result.returncode != 0:
-                logger.error(f"Failed to pull changes: {result.stderr}")
-                return False
-
-            logger.info(f"Successfully pulled changes: {result.stdout}")
+        if "inactive" in status_result.stdout:
+            logger.info("DecData service stopped successfully")
             return True
-
-        except Exception as e:
-            logger.error(f"Error updating repository: {e}")
+        else:
+            logger.warning("DecData service may still be running")
             return False
+    except Exception as e:
+        logger.error(f"Error stopping DecData service: {e}")
+        return False
+
+def start_decdata():
+    """
+    Start the DecData service
+    """
+    logger.info("Starting DecData service")
+    try:
+        subprocess.run(
+            "sudo systemctl start decdata.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        # Wait a moment to ensure it's started
+        time.sleep(5)
+
+        # Check if it's really started
+        status_result = subprocess.run(
+            "systemctl is-active decdata.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        if "active" in status_result.stdout:
+            logger.info("DecData service started successfully")
+            return True
+        else:
+            logger.error("Failed to start DecData service")
+            return False
+    except Exception as e:
+        logger.error(f"Error starting DecData service: {e}")
+        return False
 
 def create_backup():
     """
@@ -305,7 +245,7 @@ def restart_service(service_name):
 
 def process_update():
     """
-    Process the update trigger file and update NosVid
+    Process the update trigger file and update NosVid and DecData
     """
     logger.info("Processing update")
 
@@ -317,78 +257,28 @@ def process_update():
     except Exception as e:
         logger.error(f"Error reading trigger file: {e}")
 
-    # Load configuration
-    config_path = os.path.join(NOSVID_DIR, "updater_config.json")
-
-    if not os.path.exists(config_path):
-        logger.error(f"Configuration file not found: {config_path}")
-        logger.info("Creating example configuration file...")
-
-        example_config = {
-            "github_app": {
-                "app_id": "YOUR_APP_ID",
-                "private_key_path": "/path/to/your/private_key.pem",
-                "installation_id": "YOUR_INSTALLATION_ID"
-            },
-            "repository": {
-                "owner": "YOUR_GITHUB_USERNAME_OR_ORG",
-                "name": "nosvid"
-            }
-        }
-
-        with open(config_path, 'w') as f:
-            json.dump(example_config, f, indent=2)
-
-        logger.error(f"Example configuration file created at {config_path}")
-        logger.error("Please edit the configuration file and run the updater again.")
-        return False
-
-    # Load configuration
-    try:
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-    except Exception as e:
-        logger.error(f"Error loading configuration file: {e}")
-        return False
-
-    # Create GitHub App authentication
-    try:
-        auth = GitHubAppAuth(
-            app_id=config['github_app']['app_id'],
-            private_key_path=config['github_app']['private_key_path'],
-            installation_id=config['github_app']['installation_id']
-        )
-    except Exception as e:
-        logger.error(f"Error creating GitHub App authentication: {e}")
-        return False
-
     # Create a backup
     if not create_backup():
         logger.error("Backup failed, aborting update")
         return False
 
-    # Stop NosVid
-    if not stop_nosvid():
+    # Stop both services
+    logger.info("Stopping services...")
+    nosvid_stopped = stop_nosvid()
+    decdata_stopped = stop_decdata()
+
+    if not nosvid_stopped:
         logger.warning("Failed to stop NosVid, continuing anyway")
 
-    # Update NosVid
+    if not decdata_stopped:
+        logger.warning("Failed to stop DecData, continuing anyway")
+
+    # Update the repository
     try:
-        # Get access token
-        access_token = auth.get_access_token()
-        if not access_token:
-            logger.error("Failed to get access token")
-            start_nosvid()  # Try to restart NosVid
-            return False
-
-        # Construct the remote URL with the access token
-        repo_owner = config['repository']['owner']
-        repo_name = config['repository']['name']
-        remote_url = f"https://{access_token}@github.com/{repo_owner}/{repo_name}.git"
-
-        # Pull the latest code
-        logger.info(f"Pulling latest changes for {repo_owner}/{repo_name}")
+        # Pull the latest code using the deploy key (which should be configured in the system)
+        logger.info("Pulling latest changes")
         result = subprocess.run(
-            ["git", "pull", remote_url],
+            ["git", "pull"],
             cwd=NOSVID_DIR,
             capture_output=True,
             text=True
@@ -396,7 +286,9 @@ def process_update():
 
         if result.returncode != 0:
             logger.error(f"Failed to pull changes: {result.stderr}")
-            start_nosvid()  # Try to restart NosVid
+            # Try to restart services
+            start_nosvid()
+            start_decdata()
             return False
 
         logger.info(f"Successfully pulled changes: {result.stdout}")
@@ -412,7 +304,9 @@ def process_update():
 
         if result.returncode != 0:
             logger.error(f"Failed to update dependencies: {result.stderr}")
-            start_nosvid()  # Try to restart NosVid
+            # Try to restart services
+            start_nosvid()
+            start_decdata()
             return False
 
         # Ensure yt-dlp is installed
@@ -434,13 +328,23 @@ def process_update():
                 text=True
             )
     except Exception as e:
-        logger.error(f"Error updating NosVid: {e}")
-        start_nosvid()  # Try to restart NosVid
+        logger.error(f"Error updating repository: {e}")
+        # Try to restart services
+        start_nosvid()
+        start_decdata()
         return False
 
-    # Start NosVid
-    if not start_nosvid():
+    # Start both services
+    logger.info("Starting services...")
+    nosvid_started = start_nosvid()
+    decdata_started = start_decdata()
+
+    if not nosvid_started:
         logger.error("Failed to start NosVid after update")
+        return False
+
+    if not decdata_started:
+        logger.error("Failed to start DecData after update")
         return False
 
     logger.info("Update completed successfully")

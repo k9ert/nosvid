@@ -380,51 +380,18 @@ def process_update():
             start_nosvid()  # Try to restart NosVid
             return False
 
-        # Get repository information
+        # Construct the remote URL with the access token
         repo_owner = config['repository']['owner']
         repo_name = config['repository']['name']
+        remote_url = f"https://{access_token}@github.com/{repo_owner}/{repo_name}.git"
 
         # Pull the latest code
         logger.info(f"Pulling latest changes for {repo_owner}/{repo_name}")
-
-        # Set up git environment with the token
-        git_env = os.environ.copy()
-        git_env['GIT_ASKPASS'] = 'echo'
-        git_env['GIT_TERMINAL_PROMPT'] = '0'
-
-        # First, set the remote URL with credentials
-        subprocess.run(
-            ["git", "remote", "set-url", "origin",
-             f"https://x-access-token:{access_token}@github.com/{repo_owner}/{repo_name}.git"],
-            cwd=NOSVID_DIR,
-            capture_output=True,
-            text=True,
-            env=git_env
-        )
-
-        # Get current branch
-        branch_result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=NOSVID_DIR,
-            capture_output=True,
-            text=True,
-            env=git_env
-        )
-
-        if branch_result.returncode != 0:
-            branch = "main"  # Default to main if we can't determine the branch
-            logger.warning(f"Could not determine current branch, using 'main': {branch_result.stderr}")
-        else:
-            branch = branch_result.stdout.strip()
-            logger.info(f"Current branch: {branch}")
-
-        # Then pull from origin
         result = subprocess.run(
-            ["git", "pull", "origin", branch],
+            ["git", "pull", remote_url],
             cwd=NOSVID_DIR,
             capture_output=True,
-            text=True,
-            env=git_env
+            text=True
         )
 
         if result.returncode != 0:

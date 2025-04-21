@@ -81,10 +81,26 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Scheduled Jobs</h5>
-                <button id="refresh-button" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                <div>
+                    {% if cronjobs_enabled %}
+                    <span class="badge badge-enabled me-2">Cronjobs Enabled</span>
+                    {% else %}
+                    <span class="badge badge-disabled me-2">Cronjobs Disabled</span>
+                    <div class="alert alert-warning mt-2">
+                        <small>Scheduled jobs are disabled. To enable them, restart NosVid with the <code>--with-cronjobs</code> flag.</small>
+                    </div>
+                    {% endif %}
+                    <button id="refresh-button" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
             </div>
             <div class="card-body">
-                <div id="jobs-container">
+                {% if not cronjobs_enabled %}
+                <div class="alert alert-info">
+                    <p>Scheduled jobs are currently disabled. To enable them, restart NosVid with:</p>
+                    <pre><code>nosvid serve --with-cronjobs</code></pre>
+                </div>
+                {% endif %}
+                <div id="jobs-container" {% if not cronjobs_enabled %}style="display: none;"{% endif %}>
                     <div class="d-flex justify-content-center">
                         <div class="spinner-border text-light" role="status">
                             <span class="visually-hidden">Loading...</span>
@@ -233,13 +249,19 @@
 
         // Refresh button handler
         document.addEventListener('DOMContentLoaded', () => {
-            // Load jobs when the page loads
+            // Only load jobs if cronjobs are enabled
+            {% if cronjobs_enabled %}
             loadJobs();
+            {% endif %}
 
             // Add event listener to refresh button
             document.getElementById('refresh-button').addEventListener('click', () => {
+                {% if cronjobs_enabled %}
                 loadJobs();
                 showToast('Jobs refreshed', 'info');
+                {% else %}
+                showToast('Scheduled jobs are disabled. Restart with --with-cronjobs to enable.', 'warning');
+                {% endif %}
             });
         });
     </script>

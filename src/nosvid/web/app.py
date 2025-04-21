@@ -25,6 +25,9 @@ app.mount("/api", api_app)
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
+# Store whether cronjobs are enabled
+cronjobs_enabled = False
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """
@@ -37,28 +40,39 @@ async def status(request: Request):
     """
     Render the status page
     """
-    return templates.TemplateResponse("status.html", {"request": request})
+    return templates.TemplateResponse("status.html", {
+        "request": request,
+        "cronjobs_enabled": cronjobs_enabled
+    })
 
-def run(port=8000):
+def run(port=8000, with_cronjobs=False):
     """
     Run the web application
 
     Args:
         port: Port to run the server on
+        with_cronjobs: Whether to enable scheduled jobs (cronjobs)
     """
-    # Initialize and start the scheduler service
-    scheduler = SchedulerService()
-    logger.info("Initializing scheduler service")
+    # Update the global cronjobs_enabled variable
+    global cronjobs_enabled
+    cronjobs_enabled = with_cronjobs
 
-    # Log all scheduled jobs
-    jobs = scheduler.get_all_jobs()
-    if jobs:
-        logger.info(f"Scheduled jobs: {len(jobs)}")
-        for job in jobs:
-            next_run = job.get('next_run', 'Not scheduled')
-            logger.info(f"  - {job['id']}: {job['description']} (Next run: {next_run})")
+    if with_cronjobs:
+        # Initialize and start the scheduler service
+        scheduler = SchedulerService()
+        logger.info("Initializing scheduler service")
+
+        # Log all scheduled jobs
+        jobs = scheduler.get_all_jobs()
+        if jobs:
+            logger.info(f"Scheduled jobs: {len(jobs)}")
+            for job in jobs:
+                next_run = job.get('next_run', 'Not scheduled')
+                logger.info(f"  - {job['id']}: {job['description']} (Next run: {next_run})")
+        else:
+            logger.info("No scheduled jobs configured")
     else:
-        logger.info("No scheduled jobs configured")
+        logger.info("Scheduled jobs (cronjobs) are disabled")
 
     # Start the web server
     import uvicorn

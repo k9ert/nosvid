@@ -1,0 +1,17 @@
+[Unit]
+Description=DecData Service
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/decdata
+ExecStart=/path/to/decdata/venv/bin/python /path/to/decdata/run_node.py --port 2122
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

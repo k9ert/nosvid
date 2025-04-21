@@ -23,6 +23,9 @@ INSTALL_REQUIRES = [
     "pydantic>=1.10.7",
     "python-multipart>=0.0.6",
     "apscheduler>=3.10.1",
+
+    # decdata
+    "p2pnetwork>=1.2",
 ]
 
 # Optional dependencies (only for development)

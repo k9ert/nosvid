@@ -14,7 +14,7 @@ import json
 import logging
 import subprocess
 import requests
-import jwt
+import jwt  # PyJWT package
 from datetime import datetime, timedelta
 import argparse
 

@@ -25,16 +25,16 @@ def main():
     parser = argparse.ArgumentParser(description='DecData - Decentralized Video Data Exchange')
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
     
-    # Start command
-    start_parser = subparsers.add_parser('start', help='Start a DecData node')
-    start_parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
-    start_parser.add_argument('--port', type=int, default=2122, help='Port to bind to')
-    start_parser.add_argument('--share-dir', type=str, help='Directory containing videos to share')
-    start_parser.add_argument('--nosvid-repo', type=str, help='Path to NosVid repository')
-    start_parser.add_argument('--nosvid-api-url', type=str, default='http://localhost:2121/api', help='URL of the NosVid API')
-    start_parser.add_argument('--channel-title', type=str, default='Einundzwanzig Podcast', help='Title of the channel')
-    start_parser.add_argument('--sync-interval', type=int, default=300, help='Interval in seconds for syncing with NosVid API')
-    start_parser.add_argument('--max-connections', type=int, default=0, help='Maximum number of connections (0 for unlimited)')
+    # Serve command
+    serve_parser = subparsers.add_parser('serve', help='Start a DecData node')
+    serve_parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
+    serve_parser.add_argument('--port', type=int, default=2122, help='Port to bind to')
+    serve_parser.add_argument('--share-dir', type=str, help='Directory containing videos to share')
+    serve_parser.add_argument('--nosvid-repo', type=str, help='Path to NosVid repository')
+    serve_parser.add_argument('--nosvid-api-url', type=str, default='http://localhost:2121/api', help='URL of the NosVid API')
+    serve_parser.add_argument('--channel-title', type=str, default='Einundzwanzig Podcast', help='Title of the channel')
+    serve_parser.add_argument('--sync-interval', type=int, default=300, help='Interval in seconds for syncing with NosVid API')
+    serve_parser.add_argument('--max-connections', type=int, default=0, help='Maximum number of connections (0 for unlimited)')
     
     # Connect command
     connect_parser = subparsers.add_parser('connect', help='Connect to another node')
@@ -54,12 +54,19 @@ def main():
     download_parser.add_argument('--node', type=str, help='ID of the node to download from')
     download_parser.add_argument('--output', type=str, help='Output directory')
     
+    # Interactive command
+    interactive_parser = subparsers.add_parser('interactive', help='Start interactive mode')
+    interactive_parser.add_argument('--local-port', type=int, default=0, help='Local port to bind to (0 for auto-assign)')
+    interactive_parser.add_argument('--share-dir', type=str, help='Directory containing videos to share')
+    
     args = parser.parse_args()
     
-    if args.command == 'start':
+    if args.command == 'serve':
         start_node(args)
     elif args.command == 'connect':
         connect_to_node(args)
+    elif args.command == 'interactive':
+        interactive_mode(args)
     elif args.command == 'search':
         search_videos(args)
     elif args.command == 'download':
@@ -213,6 +220,105 @@ def download_video(args):
     finally:
         node.stop()
         node.join()
+
+def interactive_mode(args):
+    """
+    Interactive mode for testing node communication.
+    """
+    import cmd
+    import time
+
+    class DecDataShell(cmd.Cmd):
+        intro = 'Welcome to DecData interactive shell. Type help or ? to list commands.\n'
+        prompt = 'decdata> '
+
+        def __init__(self, node):
+            super().__init__()
+            self.node = node
+
+        def do_connect(self, arg):
+            'Connect to a remote node: connect <host> <port>'
+            try:
+                host, port = arg.split()
+                port = int(port)
+                if self.node.connect_with_node(host, port):
+                    print(f"Connected to {host}:{port}")
+                else:
+                    print(f"Failed to connect to {host}:{port}")
+            except ValueError:
+                print("Usage: connect <host> <port>")
+
+        def do_peers(self, arg):
+            'List connected peers'
+            peers = self.node.get_peers()
+            if not peers:
+                print("No connected peers")
+            else:
+                for i, peer in enumerate(peers, 1):
+                    print(f"{i}. {peer.host}:{peer.port}")
+
+        def do_send(self, arg):
+            'Send a message to all peers: send <message>'
+            if not arg:
+                print("Usage: send <message>")
+                return
+            self.node.send_to_nodes({"type": "message", "content": arg})
+            print(f"Message sent: {arg}")
+
+        def do_sendto(self, arg):
+            'Send a message to a specific peer: sendto <peer_index> <message>'
+            try:
+                peer_idx, message = arg.split(maxsplit=1)
+                peer_idx = int(peer_idx) - 1
+                peers = self.node.get_peers()
+                if 0 <= peer_idx < len(peers):
+                    peers[peer_idx].send({"type": "message", "content": message})
+                    print(f"Message sent to peer {peer_idx + 1}: {message}")
+                else:
+                    print("Invalid peer index")
+            except ValueError:
+                print("Usage: sendto <peer_index> <message>")
+
+        def do_exit(self, arg):
+            'Exit the shell'
+            print("Stopping node...")
+            self.node.stop()
+            self.node.join()
+            print("Node stopped")
+            return True
+
+        def do_EOF(self, arg):
+            'Exit on Ctrl-D'
+            print()  # Empty line
+            return self.do_exit(arg)
+
+    # Create and start the node
+    node = DecDataNode(
+        host='0.0.0.0',
+        port=args.local_port,
+        share_dir=args.share_dir
+    )
+    
+    # Add a message handler for the interactive mode
+    def message_handler(node, peer, data):
+        if data.get("type") == "message":
+            print(f"\nReceived from {peer.host}:{peer.port}: {data['content']}")
+            print(f"{DecDataShell.prompt}", end='', flush=True)
+    
+    node.add_message_handler(message_handler)
+    node.start()
+    
+    print(f"DecData node started on port {node.port}")
+    
+    # Start the interactive shell
+    shell = DecDataShell(node)
+    try:
+        shell.cmdloop()
+    except KeyboardInterrupt:
+        print("\nStopping node...")
+        node.stop()
+        node.join()
+        print("Node stopped")
 
 if __name__ == '__main__':
     main()

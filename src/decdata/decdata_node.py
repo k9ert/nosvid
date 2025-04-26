@@ -7,12 +7,11 @@ which enables decentralized exchange of video data collected by the NosVid proje
 It extends the Node class from the p2pnetwork package.
 """
 
-import os
 import json
 import time
 import hashlib
 import threading
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from p2pnetwork.node import Node
 
 from .nosvid_api_client import NosVidAPIClient
@@ -26,39 +25,25 @@ class DecDataNode(Node):
     the specific functionality needed for the DecData project.
     """
 
-    def __init__(self, host: str, port: int, share_dir: str = None,
-                 nosvid_repo: str = None, nosvid_api_url: str = "http://localhost:2121/api",
-                 channel_title: str = "Einundzwanzig Podcast", id: str = None,
-                 max_connections: int = 0, sync_interval: int = 300):
+    def __init__(self, host: str, port: int,
+                 nosvid_api_url: str = "http://localhost:2121/api",
+                 id: str = None, max_connections: int = 0,
+                 sync_interval: int = 300):
         """
         Initialize the DecData node.
 
         Args:
             host: The host name or ip address to bind to
             port: The port number to bind to
-            share_dir: Directory containing videos to share
-            nosvid_repo: Path to NosVid repository (optional)
             nosvid_api_url: URL of the NosVid API
-            channel_title: Title of the channel
             id: Node ID (optional, will be generated if not provided)
             max_connections: Maximum number of connections (0 for unlimited)
             sync_interval: Interval in seconds for syncing with NosVid API
         """
         super(DecDataNode, self).__init__(host, port, id, None, max_connections)
 
-        # Directory containing videos to share
-        self.share_dir = share_dir
-        if share_dir and not os.path.exists(share_dir):
-            os.makedirs(share_dir, exist_ok=True)
-
-        # Path to NosVid repository
-        self.nosvid_repo = nosvid_repo
-
         # NosVid API client
         self.nosvid_api = NosVidAPIClient(nosvid_api_url)
-
-        # Channel title
-        self.channel_title = channel_title
 
         # Video catalog - maps video_id to metadata
         self.video_catalog: Dict[str, Dict[str, Any]] = {}
@@ -75,6 +60,9 @@ class DecDataNode(Node):
         # Sync thread
         self.sync_thread = None
         self.sync_stop_event = threading.Event()
+
+        # Message handlers
+        self.message_handlers = []
 
         # Load local video catalog
         self.load_local_catalog()
@@ -129,12 +117,11 @@ class DecDataNode(Node):
         """
         super(DecDataNode, self).start()
 
-        # Start the sync thread if we have a NosVid repository
-        if self.nosvid_repo or self.nosvid_api:
-            self.sync_stop_event.clear()
-            self.sync_thread = threading.Thread(target=self.sync_with_nosvid)
-            self.sync_thread.daemon = True
-            self.sync_thread.start()
+        # Start the sync thread
+        self.sync_stop_event.clear()
+        self.sync_thread = threading.Thread(target=self.sync_with_nosvid)
+        self.sync_thread.daemon = True
+        self.sync_thread.start()
 
     def stop(self):
         """
@@ -168,27 +155,14 @@ class DecDataNode(Node):
                         youtube = platforms.get('youtube', {})
 
                         if youtube.get('downloaded', False):
-                            # Get the file path
-                            file_path = self.nosvid_api.get_video_file_path(
-                                video_id=video_id,
-                                channel_title=self.channel_title,
-                                base_dir=self.nosvid_repo or "./repository"
-                            )
-
-                            if file_path and os.path.exists(file_path):
-                                # Calculate file size and hash
-                                file_size = os.path.getsize(file_path)
-
-                                # Add to catalog
-                                self.video_catalog[video_id] = {
-                                    'video_id': video_id,
-                                    'title': video.get('title', ''),
-                                    'published_at': video.get('published_at', ''),
-                                    'duration': video.get('duration', 0),
-                                    'file_path': file_path,
-                                    'file_size': file_size,
-                                    'platforms': platforms
-                                }
+                            # Add to catalog without file path (we'll fetch content on demand)
+                            self.video_catalog[video_id] = {
+                                'video_id': video_id,
+                                'title': video.get('title', ''),
+                                'published_at': video.get('published_at', ''),
+                                'duration': video.get('duration', 0),
+                                'platforms': platforms
+                            }
 
                 print(f"Synced {len(videos)} videos from NosVid API, {len(self.video_catalog)} in local catalog")
 
@@ -206,6 +180,20 @@ class DecDataNode(Node):
                         break
                     time.sleep(1)
 
+    def add_message_handler(self, handler):
+        """
+        Add a message handler function.
+
+        The handler function should have the signature:
+        handler(node, peer, data)
+
+        Args:
+            handler: The handler function to add
+        """
+        if handler not in self.message_handlers:
+            self.message_handlers.append(handler)
+            print(f"Added message handler: {handler.__name__ if hasattr(handler, '__name__') else handler}")
+
     def node_message(self, node, data):
         """
         Event triggered when a message is received from a node.
@@ -214,10 +202,35 @@ class DecDataNode(Node):
             node: The node that sent the message
             data: The message data
         """
-        print(f"Message from node {node.id}: {data[:100]}...")
+        # Safely print the message preview
+        try:
+            if isinstance(data, str):
+                preview = data[:100]
+            elif isinstance(data, dict):
+                preview = str(data)[:100]
+            else:
+                preview = str(data)[:100]
+            print(f"Message from node {node.id}: {preview}...")
+        except Exception as e:
+            print(f"Message from node {node.id}: <error displaying message preview: {e}>")
+
+        # Call all registered message handlers
+        for handler in self.message_handlers:
+            try:
+                handler(self, node, data)
+            except Exception as e:
+                print(f"Error in message handler {handler.__name__ if hasattr(handler, '__name__') else handler}: {e}")
 
         try:
-            message = json.loads(data)
+            # Handle different data types
+            if isinstance(data, dict):
+                message = data
+            elif isinstance(data, str):
+                message = json.loads(data)
+            else:
+                print(f"Unsupported data type: {type(data)}")
+                return
+
             message_type = message.get('type')
 
             if message_type == 'catalog':
@@ -234,6 +247,9 @@ class DecDataNode(Node):
                 self.handle_video_info_request(node, message)
             elif message_type == 'video_info_response':
                 self.handle_video_info_response(node, message)
+            elif message_type == 'message':
+                # Handle simple message type for interactive mode
+                print(f"Message from {node.id}: {message.get('content', '')}")
             else:
                 print(f"Unknown message type: {message_type}")
 
@@ -348,24 +364,22 @@ class DecDataNode(Node):
             self.send_to_node(node, json.dumps(error_message))
             return
 
-        # Get video file path
-        video_path = self.get_video_file_path(video_id)
-        if not video_path:
+        # Get video content from the API
+        video_content = self.get_video_content(video_id)
+        if not video_content or 'file_data' not in video_content:
             error_message = {
                 'type': 'download_error',
                 'request_id': request_id,
-                'error': 'Video file not found'
+                'error': 'Video content not available'
             }
             self.send_to_node(node, json.dumps(error_message))
             return
 
         # Send file data
         try:
-            with open(video_path, 'rb') as f:
-                file_data = f.read()
-
-            # Calculate file hash
-            file_hash = hashlib.sha256(file_data).hexdigest()
+            file_data = video_content['file_data']
+            file_hash = video_content['file_hash']
+            file_size = video_content['file_size']
 
             # Send file data
             file_message = {
@@ -373,7 +387,7 @@ class DecDataNode(Node):
                 'request_id': request_id,
                 'video_id': video_id,
                 'file_hash': file_hash,
-                'file_size': len(file_data),
+                'file_size': file_size,
                 'file_data': file_data.hex()  # Convert binary to hex string
             }
 
@@ -414,21 +428,24 @@ class DecDataNode(Node):
                 print(f"File hash mismatch for video {video_id}")
                 return
 
-            # Save file
-            if self.share_dir:
-                output_path = os.path.join(self.share_dir, f"{video_id}.mp4")
-                with open(output_path, 'wb') as f:
-                    f.write(file_data)
+            # Request the NosVid API to save the file
+            # In a real implementation, we would have an API endpoint to upload the file
+            # For now, we'll just update our local catalog
+            print(f"Received video {video_id} from peer (size: {file_size} bytes)")
 
-                print(f"Saved video {video_id} to {output_path}")
-
+            # Get video info from API to update our catalog
+            video_info = self.nosvid_api.get_video(video_id)
+            if video_info:
                 # Update local catalog
                 if video_id not in self.video_catalog:
                     self.video_catalog[video_id] = {
                         'video_id': video_id,
-                        'file_path': output_path,
+                        'title': video_info.get('title', ''),
+                        'published_at': video_info.get('published_at', ''),
+                        'duration': video_info.get('duration', 0),
                         'file_size': file_size,
-                        'file_hash': file_hash
+                        'file_hash': file_hash,
+                        'platforms': video_info.get('platforms', {})
                     }
 
         except Exception as e:
@@ -509,95 +526,47 @@ class DecDataNode(Node):
 
     def load_local_catalog(self):
         """
-        Load the local video catalog from the share directory and NosVid repository.
+        Load the local video catalog from the NosVid API.
         """
-        # Load from share directory
-        if self.share_dir and os.path.exists(self.share_dir):
-            try:
-                # Scan share directory for video files
-                for filename in os.listdir(self.share_dir):
-                    if filename.endswith('.mp4'):
-                        video_id = filename.split('.')[0]
-                        file_path = os.path.join(self.share_dir, filename)
+        try:
+            # Get videos from NosVid API
+            response = self.nosvid_api.list_videos(limit=100)
+            videos = response.get('videos', [])
 
-                        # Get file size
-                        file_size = os.path.getsize(file_path)
+            # Update local catalog
+            for video in videos:
+                video_id = video.get('video_id')
+                if video_id:
+                    # Check if the video has been downloaded
+                    platforms = video.get('platforms', {})
+                    youtube = platforms.get('youtube', {})
 
-                        # Calculate file hash
-                        with open(file_path, 'rb') as f:
-                            file_data = f.read()
-                            file_hash = hashlib.sha256(file_data).hexdigest()
-
-                        # Add to catalog
+                    if youtube.get('downloaded', False):
+                        # Add to catalog without file path (we'll fetch content on demand)
                         self.video_catalog[video_id] = {
                             'video_id': video_id,
-                            'file_path': file_path,
-                            'file_size': file_size,
-                            'file_hash': file_hash
+                            'title': video.get('title', ''),
+                            'published_at': video.get('published_at', ''),
+                            'duration': video.get('duration', 0),
+                            'platforms': platforms
                         }
 
-                print(f"Loaded {len(self.video_catalog)} videos from share directory")
+            print(f"Loaded {len(self.video_catalog)} videos from NosVid API")
 
-            except Exception as e:
-                print(f"Error loading videos from share directory: {e}")
+        except Exception as e:
+            print(f"Error loading videos from NosVid API: {e}")
 
-        # Load from NosVid repository
-        if self.nosvid_repo and os.path.exists(self.nosvid_repo):
-            try:
-                # Get videos from NosVid API
-                response = self.nosvid_api.list_videos(limit=100)
-                videos = response.get('videos', [])
-
-                # Update local catalog
-                for video in videos:
-                    video_id = video.get('video_id')
-                    if video_id:
-                        # Check if the video has been downloaded
-                        platforms = video.get('platforms', {})
-                        youtube = platforms.get('youtube', {})
-
-                        if youtube.get('downloaded', False):
-                            # Get the file path
-                            file_path = self.nosvid_api.get_video_file_path(
-                                video_id=video_id,
-                                channel_title=self.channel_title,
-                                base_dir=self.nosvid_repo
-                            )
-
-                            if file_path and os.path.exists(file_path):
-                                # Calculate file size
-                                file_size = os.path.getsize(file_path)
-
-                                # Add to catalog
-                                self.video_catalog[video_id] = {
-                                    'video_id': video_id,
-                                    'title': video.get('title', ''),
-                                    'published_at': video.get('published_at', ''),
-                                    'duration': video.get('duration', 0),
-                                    'file_path': file_path,
-                                    'file_size': file_size,
-                                    'platforms': platforms
-                                }
-
-                print(f"Loaded {len(self.video_catalog)} videos from NosVid repository")
-
-            except Exception as e:
-                print(f"Error loading videos from NosVid repository: {e}")
-
-    def get_video_file_path(self, video_id):
+    def get_video_content(self, video_id):
         """
-        Get the file path for a video.
+        Get the content for a video using the NosVid API.
 
         Args:
             video_id: ID of the video
 
         Returns:
-            Path to the video file, or None if not found
+            Dictionary with video content and metadata, or None if not found
         """
-        if video_id in self.video_catalog:
-            return self.video_catalog[video_id].get('file_path')
-
-        return None
+        return self.nosvid_api.get_video_file_content(video_id)
 
     def search_videos(self, query=None, video_id=None):
         """
@@ -681,6 +650,16 @@ class DecDataNode(Node):
                     return None
 
         return None
+
+    def get_peers(self):
+        """
+        Get a list of all connected peers.
+
+        Returns:
+            List of connected peer nodes
+        """
+        # Combine inbound and outbound nodes
+        return self.nodes_inbound + self.nodes_outbound
 
     def download_video(self, video_id, node_id=None):
         """

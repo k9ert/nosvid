@@ -24,43 +24,40 @@ def main():
     """
     parser = argparse.ArgumentParser(description='DecData - Decentralized Video Data Exchange')
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
-    
+
     # Serve command
     serve_parser = subparsers.add_parser('serve', help='Start a DecData node')
     serve_parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
     serve_parser.add_argument('--port', type=int, default=2122, help='Port to bind to')
-    serve_parser.add_argument('--share-dir', type=str, help='Directory containing videos to share')
-    serve_parser.add_argument('--nosvid-repo', type=str, help='Path to NosVid repository')
     serve_parser.add_argument('--nosvid-api-url', type=str, default='http://localhost:2121/api', help='URL of the NosVid API')
-    serve_parser.add_argument('--channel-title', type=str, default='Einundzwanzig Podcast', help='Title of the channel')
     serve_parser.add_argument('--sync-interval', type=int, default=300, help='Interval in seconds for syncing with NosVid API')
     serve_parser.add_argument('--max-connections', type=int, default=0, help='Maximum number of connections (0 for unlimited)')
-    
+
     # Connect command
     connect_parser = subparsers.add_parser('connect', help='Connect to another node')
     connect_parser.add_argument('--host', type=str, required=True, help='Host to connect to')
     connect_parser.add_argument('--port', type=int, required=True, help='Port to connect to')
     connect_parser.add_argument('--local-port', type=int, default=0, help='Local port to bind to (0 for auto-assign)')
-    connect_parser.add_argument('--share-dir', type=str, help='Directory containing videos to share')
-    
+    connect_parser.add_argument('--nosvid-api-url', type=str, default='http://localhost:2121/api', help='URL of the NosVid API')
+
     # Search command
     search_parser = subparsers.add_parser('search', help='Search for videos')
     search_parser.add_argument('query', type=str, nargs='?', help='Search query')
     search_parser.add_argument('--id', type=str, help='Video ID to search for')
-    
+
     # Download command
     download_parser = subparsers.add_parser('download', help='Download a video')
     download_parser.add_argument('video_id', type=str, help='ID of the video to download')
     download_parser.add_argument('--node', type=str, help='ID of the node to download from')
     download_parser.add_argument('--output', type=str, help='Output directory')
-    
+
     # Interactive command
     interactive_parser = subparsers.add_parser('interactive', help='Start interactive mode')
     interactive_parser.add_argument('--local-port', type=int, default=0, help='Local port to bind to (0 for auto-assign)')
-    interactive_parser.add_argument('--share-dir', type=str, help='Directory containing videos to share')
-    
+    interactive_parser.add_argument('--nosvid-api-url', type=str, default='http://localhost:2121/api', help='URL of the NosVid API')
+
     args = parser.parse_args()
-    
+
     if args.command == 'serve':
         start_node(args)
     elif args.command == 'connect':
@@ -80,28 +77,21 @@ def start_node(args):
     Start a DecData node.
     """
     import time
-    
-    # Create share directory if it doesn't exist
-    if args.share_dir and not os.path.exists(args.share_dir):
-        os.makedirs(args.share_dir, exist_ok=True)
-    
+
     # Create and start the node
     node = DecDataNode(
         host=args.host,
         port=args.port,
-        share_dir=args.share_dir,
-        nosvid_repo=args.nosvid_repo,
         nosvid_api_url=args.nosvid_api_url,
-        channel_title=args.channel_title,
         max_connections=args.max_connections,
         sync_interval=args.sync_interval
     )
-    
+
     node.start()
-    
+
     print(f"DecData node started on {args.host}:{args.port}")
     print("Press Ctrl+C to stop the node")
-    
+
     try:
         # Keep the node running
         while True:
@@ -117,27 +107,23 @@ def connect_to_node(args):
     Connect to another node.
     """
     import time
-    
-    # Create share directory if it doesn't exist
-    if args.share_dir and not os.path.exists(args.share_dir):
-        os.makedirs(args.share_dir, exist_ok=True)
-    
+
     # Create and start the node
     node = DecDataNode(
         host='0.0.0.0',
         port=args.local_port,
-        share_dir=args.share_dir
+        nosvid_api_url=args.nosvid_api_url
     )
-    
+
     node.start()
-    
+
     print(f"DecData node started on port {node.port}")
-    
+
     # Connect to the remote node
     print(f"Connecting to {args.host}:{args.port}...")
     if node.connect_with_node(args.host, args.port):
         print(f"Connected to {args.host}:{args.port}")
-        
+
         # Keep the connection open for a while
         try:
             print("Press Ctrl+C to disconnect")
@@ -147,7 +133,7 @@ def connect_to_node(args):
             print("Disconnecting...")
     else:
         print(f"Failed to connect to {args.host}:{args.port}")
-    
+
     # Stop the node
     node.stop()
     node.join()
@@ -158,26 +144,26 @@ def search_videos(args):
     Search for videos.
     """
     import time
-    
+
     # Create a temporary node for searching
     node = DecDataNode('0.0.0.0', 0)
     node.start()
-    
+
     try:
         # TODO: Connect to other nodes (would need to be configured)
         # node.connect_with_node('localhost', 8000)
-        
+
         if not args.query and not args.id:
             print("Error: Either query or video ID must be provided")
             return
-        
+
         search_id = node.search_videos(args.query, args.id)
         print(f"Search request sent (ID: {search_id})")
         print("Waiting for results...")
-        
+
         # Wait for results (in a real application, this would be handled asynchronously)
         time.sleep(5)
-        
+
         print("Search complete")
     finally:
         node.stop()
@@ -188,24 +174,24 @@ def download_video(args):
     Download a video.
     """
     import time
-    
+
     # Create a temporary node for downloading
     node = DecDataNode('0.0.0.0', 0, share_dir=args.output)
     node.start()
-    
+
     try:
         # TODO: Connect to other nodes (would need to be configured)
         # node.connect_with_node('localhost', 8000)
-        
+
         request_id = node.download_video(args.video_id, args.node)
-        
+
         if not request_id:
             print(f"Failed to download video {args.video_id}")
             return
-        
+
         print(f"Download request sent (ID: {request_id})")
         print("Waiting for download to complete...")
-        
+
         # Wait for download to complete (in a real application, this would be handled asynchronously)
         while request_id in node.active_transfers:
             transfer = node.active_transfers[request_id]
@@ -215,7 +201,7 @@ def download_video(args):
             elif transfer['status'] == 'failed':
                 print(f"Download failed: {args.video_id}")
                 break
-            
+
             time.sleep(1)
     finally:
         node.stop()
@@ -296,20 +282,34 @@ def interactive_mode(args):
     node = DecDataNode(
         host='0.0.0.0',
         port=args.local_port,
-        share_dir=args.share_dir
+        nosvid_api_url=args.nosvid_api_url
     )
-    
+
     # Add a message handler for the interactive mode
     def message_handler(node, peer, data):
-        if data.get("type") == "message":
-            print(f"\nReceived from {peer.host}:{peer.port}: {data['content']}")
+        try:
+            # Handle different data types
+            if isinstance(data, dict):
+                message = data
+            elif isinstance(data, str):
+                import json
+                message = json.loads(data)
+            else:
+                # Not a message we can handle
+                return
+
+            if message.get("type") == "message":
+                print(f"\nReceived from {peer.host}:{peer.port}: {message.get('content', '')}")
+                print(f"{DecDataShell.prompt}", end='', flush=True)
+        except Exception as e:
+            print(f"\nError handling message: {e}")
             print(f"{DecDataShell.prompt}", end='', flush=True)
-    
+
     node.add_message_handler(message_handler)
     node.start()
-    
+
     print(f"DecData node started on port {node.port}")
-    
+
     # Start the interactive shell
     shell = DecDataShell(node)
     try:

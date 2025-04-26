@@ -8,6 +8,7 @@ It allows the DecData node to query the NosVid API for video information.
 
 import os
 import json
+import hashlib
 import requests
 from typing import Dict, List, Optional, Any, Union
 
@@ -200,25 +201,56 @@ class NosVidAPIClient:
                 'total_npubs': 0
             }
 
-    def get_video_file_path(self, video_id: str, channel_title: str, base_dir: str = "./repository") -> Optional[str]:
+    def get_video_file_content(self, video_id: str) -> Optional[Dict[str, Any]]:
         """
-        Get the file path for a video based on the NosVid repository structure.
+        Get the video file content from the NosVid API.
 
         Args:
             video_id: ID of the video
-            channel_title: Title of the channel
-            base_dir: Base directory for the repository
 
         Returns:
-            Path to the video file, or None if not found
+            Dictionary containing file content and metadata, or None if not found
         """
-        # This follows the NosVid repository structure
-        video_dir = os.path.join(base_dir, channel_title, "videos", video_id, "youtube")
+        try:
+            # First check if the video exists and is downloaded
+            video_info = self.get_video(video_id)
+            if not video_info:
+                print(f"Video {video_id} not found")
+                return None
 
-        # Look for MP4 files in the directory
-        if os.path.exists(video_dir):
-            for filename in os.listdir(video_dir):
-                if filename.endswith('.mp4'):
-                    return os.path.join(video_dir, filename)
+            platforms = video_info.get('platforms', {})
+            youtube = platforms.get('youtube', {})
 
-        return None
+            if not youtube.get('downloaded', False):
+                print(f"Video {video_id} is not downloaded")
+                return None
+
+            # Get the video file content
+            response = requests.get(f"{self.api_url}/videos/{video_id}/file")
+            if response.status_code == 404:
+                print(f"Video file for {video_id} not found")
+                return None
+
+            response.raise_for_status()
+
+            # Get the file content
+            file_data = response.content
+
+            # Calculate file hash and size
+            file_hash = hashlib.sha256(file_data).hexdigest()
+            file_size = len(file_data)
+
+            return {
+                'video_id': video_id,
+                'file_data': file_data,
+                'file_hash': file_hash,
+                'file_size': file_size,
+                'title': video_info.get('title', ''),
+                'published_at': video_info.get('published_at', ''),
+                'duration': video_info.get('duration', 0),
+                'platforms': platforms
+            }
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error getting video file content for {video_id}: {e}")
+            return None

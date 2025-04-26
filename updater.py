@@ -4,6 +4,7 @@ NosVid Updater
 
 This script watches for the update trigger file and updates NosVid when needed.
 It should be run as a separate service from NosVid.
+It uses a simple deploy key approach for authentication.
 """
 
 import os
@@ -13,17 +14,7 @@ import logging
 import subprocess
 import shutil
 from datetime import datetime
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("updater.log"),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger("updater")
+import argparse
 
 # Configuration
 UPDATE_TRIGGER_FILE = "/tmp/nosvid_update_needed"
@@ -32,28 +23,97 @@ NOSVID_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKUP_DIR = os.path.join(NOSVID_DIR, "backups")
 VENV_PATH = os.path.join(NOSVID_DIR, "venv")
 
-def run_command(command, cwd=None):
-    """Run a shell command and return the output"""
-    logger.info(f"Running command: {command}")
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(NOSVID_DIR, "updater.log")),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger('updater')
+
+def stop_decdata():
+    """
+    Stop the DecData service
+    """
+    logger.info("Stopping DecData service")
     try:
-        result = subprocess.run(
-            command,
+        subprocess.run(
+            "sudo systemctl stop decdata.service",
             shell=True,
-            check=True,
+            check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
-            cwd=cwd
+            text=True
         )
-        logger.info(f"Command output: {result.stdout}")
-        return True, result.stdout
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Command failed with exit code {e.returncode}")
-        logger.error(f"Error output: {e.stderr}")
-        return False, e.stderr
+
+        # Wait a moment to ensure it's stopped
+        time.sleep(5)
+
+        # Check if it's really stopped
+        status_result = subprocess.run(
+            "systemctl is-active decdata.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        if "inactive" in status_result.stdout:
+            logger.info("DecData service stopped successfully")
+            return True
+        else:
+            logger.warning("DecData service may still be running")
+            return False
+    except Exception as e:
+        logger.error(f"Error stopping DecData service: {e}")
+        return False
+
+def start_decdata():
+    """
+    Start the DecData service
+    """
+    logger.info("Starting DecData service")
+    try:
+        subprocess.run(
+            "sudo systemctl start decdata.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        # Wait a moment to ensure it's started
+        time.sleep(5)
+
+        # Check if it's really started
+        status_result = subprocess.run(
+            "systemctl is-active decdata.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        if "active" in status_result.stdout:
+            logger.info("DecData service started successfully")
+            return True
+        else:
+            logger.error("Failed to start DecData service")
+            return False
+    except Exception as e:
+        logger.error(f"Error starting DecData service: {e}")
+        return False
 
 def create_backup():
-    """Create a backup of the current NosVid installation"""
+    """
+    Create a backup of the current NosVid installation
+    """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = os.path.join(BACKUP_DIR, f"nosvid_backup_{timestamp}")
 
@@ -64,8 +124,13 @@ def create_backup():
     logger.info(f"Creating backup at {backup_path}")
     try:
         # Use rsync to copy files, excluding venv and backups
-        run_command(
-            f"rsync -a --exclude='venv' --exclude='backups' {NOSVID_DIR}/ {backup_path}/"
+        result = subprocess.run(
+            f"rsync -a --exclude='venv' --exclude='backups' {NOSVID_DIR}/ {backup_path}/",
+            shell=True,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
         )
         logger.info("Backup created successfully")
         return True
@@ -74,75 +139,114 @@ def create_backup():
         return False
 
 def stop_nosvid():
-    """Stop the NosVid service"""
+    """
+    Stop the NosVid service
+    """
     logger.info("Stopping NosVid service")
-    success, _ = run_command("sudo systemctl stop nosvid.service")
+    try:
+        result = subprocess.run(
+            "sudo systemctl stop nosvid.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
 
-    # Wait a moment to ensure it's stopped
-    time.sleep(5)
+        # Wait a moment to ensure it's stopped
+        time.sleep(5)
 
-    # Check if it's really stopped
-    _, status = run_command("systemctl is-active nosvid.service")
-    if "inactive" in status:
-        logger.info("NosVid service stopped successfully")
-        return True
-    else:
-        logger.warning("NosVid service may still be running")
+        # Check if it's really stopped
+        status_result = subprocess.run(
+            "systemctl is-active nosvid.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        if "inactive" in status_result.stdout:
+            logger.info("NosVid service stopped successfully")
+            return True
+        else:
+            logger.warning("NosVid service may still be running")
+            return False
+    except Exception as e:
+        logger.error(f"Error stopping NosVid service: {e}")
         return False
-
-def update_nosvid():
-    """Update NosVid from GitHub"""
-    logger.info("Updating NosVid from GitHub")
-
-    # Pull the latest code
-    success, _ = run_command("git pull", cwd=NOSVID_DIR)
-    if not success:
-        logger.error("Failed to pull latest code")
-        return False
-
-    # Update dependencies
-    logger.info("Updating dependencies")
-    success, _ = run_command(f"{VENV_PATH}/bin/pip install -e {NOSVID_DIR}", cwd=NOSVID_DIR)
-    if not success:
-        logger.error("Failed to update dependencies")
-        return False
-
-    # Ensure yt-dlp is installed
-    logger.info("Ensuring yt-dlp is installed")
-    success, _ = run_command(f"{VENV_PATH}/bin/pip install yt-dlp", cwd=NOSVID_DIR)
-    if not success:
-        logger.warning("Failed to install yt-dlp via pip, but continuing")
-
-    # Create symlink for yt-dlp if it doesn't exist
-    logger.info("Checking yt-dlp symlink")
-    if not os.path.exists("/usr/local/bin/yt-dlp"):
-        logger.info("Creating symlink for yt-dlp")
-        success, _ = run_command(f"sudo ln -sf {VENV_PATH}/bin/yt-dlp /usr/local/bin/yt-dlp")
-        if not success:
-            logger.warning("Failed to create symlink for yt-dlp, but continuing")
-
-    logger.info("NosVid updated successfully")
-    return True
 
 def start_nosvid():
-    """Start the NosVid service"""
+    """
+    Start the NosVid service
+    """
     logger.info("Starting NosVid service")
-    success, _ = run_command("sudo systemctl start nosvid.service")
+    try:
+        result = subprocess.run(
+            "sudo systemctl start nosvid.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
 
-    # Wait a moment to ensure it's started
-    time.sleep(5)
+        # Wait a moment to ensure it's started
+        time.sleep(5)
 
-    # Check if it's really started
-    _, status = run_command("systemctl is-active nosvid.service")
-    if "active" in status:
-        logger.info("NosVid service started successfully")
+        # Check if it's really started
+        status_result = subprocess.run(
+            "systemctl is-active nosvid.service",
+            shell=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        if "active" in status_result.stdout:
+            logger.info("NosVid service started successfully")
+            return True
+        else:
+            logger.error("Failed to start NosVid service")
+            return False
+    except Exception as e:
+        logger.error(f"Error starting NosVid service: {e}")
+        return False
+
+def restart_service(service_name):
+    """
+    Restart a systemd service
+
+    Args:
+        service_name: Name of the service to restart
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        logger.info(f"Restarting service: {service_name}")
+        result = subprocess.run(
+            ["sudo", "systemctl", "restart", service_name],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f"Failed to restart service: {result.stderr}")
+            return False
+
+        logger.info(f"Successfully restarted service: {service_name}")
         return True
-    else:
-        logger.error("Failed to start NosVid service")
+
+    except Exception as e:
+        logger.error(f"Error restarting service: {e}")
         return False
 
 def process_update():
-    """Process the update trigger file and update NosVid"""
+    """
+    Process the update trigger file and update NosVid and DecData
+    """
     logger.info("Processing update")
 
     # Read the trigger file
@@ -158,26 +262,98 @@ def process_update():
         logger.error("Backup failed, aborting update")
         return False
 
-    # Stop NosVid
-    if not stop_nosvid():
+    # Stop both services
+    logger.info("Stopping services...")
+    nosvid_stopped = stop_nosvid()
+    decdata_stopped = stop_decdata()
+
+    if not nosvid_stopped:
         logger.warning("Failed to stop NosVid, continuing anyway")
 
-    # Update NosVid
-    if not update_nosvid():
-        logger.error("Update failed, attempting to restart NosVid")
+    if not decdata_stopped:
+        logger.warning("Failed to stop DecData, continuing anyway")
+
+    # Update the repository
+    try:
+        # Pull the latest code using the deploy key (which should be configured in the system)
+        logger.info("Pulling latest changes")
+        result = subprocess.run(
+            ["git", "pull"],
+            cwd=NOSVID_DIR,
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f"Failed to pull changes: {result.stderr}")
+            # Try to restart services
+            start_nosvid()
+            start_decdata()
+            return False
+
+        logger.info(f"Successfully pulled changes: {result.stdout}")
+
+        # Update dependencies
+        logger.info("Updating dependencies")
+        result = subprocess.run(
+            [f"{VENV_PATH}/bin/pip", "install", "-e", NOSVID_DIR],
+            cwd=NOSVID_DIR,
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f"Failed to update dependencies: {result.stderr}")
+            # Try to restart services
+            start_nosvid()
+            start_decdata()
+            return False
+
+        # Ensure yt-dlp is installed
+        logger.info("Ensuring yt-dlp is installed")
+        subprocess.run(
+            [f"{VENV_PATH}/bin/pip", "install", "yt-dlp"],
+            cwd=NOSVID_DIR,
+            capture_output=True,
+            text=True
+        )
+
+        # Create symlink for yt-dlp if it doesn't exist
+        logger.info("Checking yt-dlp symlink")
+        if not os.path.exists("/usr/local/bin/yt-dlp"):
+            logger.info("Creating symlink for yt-dlp")
+            subprocess.run(
+                ["sudo", "ln", "-sf", f"{VENV_PATH}/bin/yt-dlp", "/usr/local/bin/yt-dlp"],
+                capture_output=True,
+                text=True
+            )
+    except Exception as e:
+        logger.error(f"Error updating repository: {e}")
+        # Try to restart services
         start_nosvid()
+        start_decdata()
         return False
 
-    # Start NosVid
-    if not start_nosvid():
+    # Start both services
+    logger.info("Starting services...")
+    nosvid_started = start_nosvid()
+    decdata_started = start_decdata()
+
+    if not nosvid_started:
         logger.error("Failed to start NosVid after update")
+        return False
+
+    if not decdata_started:
+        logger.error("Failed to start DecData after update")
         return False
 
     logger.info("Update completed successfully")
     return True
 
 def check_for_updates():
-    """Check if an update is needed"""
+    """
+    Check if an update is needed
+    """
     if os.path.exists(UPDATE_TRIGGER_FILE):
         logger.info(f"Found update trigger file: {UPDATE_TRIGGER_FILE}")
 
@@ -196,7 +372,14 @@ def check_for_updates():
     return False
 
 def main():
-    """Main function"""
+    """
+    Main function
+    """
+    parser = argparse.ArgumentParser(description='NosVid Updater')
+    parser.add_argument('--check-interval', type=int, default=CHECK_INTERVAL,
+                        help=f'Check interval in seconds (default: {CHECK_INTERVAL})')
+    args = parser.parse_args()
+
     logger.info("Starting NosVid updater")
 
     while True:
@@ -205,14 +388,7 @@ def main():
         except Exception as e:
             logger.error(f"Error checking for updates: {e}")
 
-        time.sleep(CHECK_INTERVAL)
+        time.sleep(args.check_interval)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        logger.info("Updater stopped by user")
-        sys.exit(0)
-    except Exception as e:
-        logger.error(f"Updater crashed: {e}")
-        sys.exit(1)
+    main()

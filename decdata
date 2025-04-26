@@ -59,7 +59,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'serve':
-        start_node(args)
+        serve_node(args)
     elif args.command == 'connect':
         connect_to_node(args)
     elif args.command == 'interactive':
@@ -72,9 +72,9 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-def start_node(args):
+def serve_node(args):
     """
-    Start a DecData node.
+    Serve a DecData node.
     """
     import time
 
@@ -89,7 +89,7 @@ def start_node(args):
 
     node.start()
 
-    print(f"DecData node started on {args.host}:{args.port}")
+    print(f"DecData node serving on {args.host}:{args.port}")
     print("Press Ctrl+C to stop the node")
 
     try:

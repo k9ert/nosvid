@@ -46,6 +46,7 @@ setup(
     entry_points={
         "console_scripts": [
             "nosvid=nosvid.cli.commands:main",
+            "decdata=decdata:main",
         ],
     },
     python_requires=">=3.6",

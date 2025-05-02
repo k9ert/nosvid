@@ -89,6 +89,16 @@ class DownloadStatusResponse(BaseModel):
     started_at: Optional[str] = None
     user: Optional[str] = None
 
+class UpdateMetadataRequest(BaseModel):
+    """Request model for updating video metadata"""
+    title: Optional[str] = None
+    published_at: Optional[str] = None
+    duration: Optional[int] = None
+    platforms: Optional[Dict[str, Any]] = None
+    nostr_posts: Optional[List[Dict[str, Any]]] = None
+    npubs: Optional[Dict[str, List[str]]] = None
+    synced_at: Optional[str] = None
+
 class StatisticsResponse(BaseModel):
     """Response model for statistics"""
     total_in_cache: int = 0
@@ -337,6 +347,65 @@ def get_download_status():
     Get the current download status
     """
     return download_status
+
+@app.post("/videos/{video_id}/update-metadata", response_model=DownloadResponse, tags=["videos"])
+def update_video_metadata(
+    video_id: str,
+    request: UpdateMetadataRequest,
+    channel_title: str = Depends(get_channel_title),
+    video_service: VideoService = Depends(get_video_service)
+):
+    """
+    Update metadata for a video
+
+    This endpoint allows updating video metadata from external sources like DecData peers.
+    It will merge the provided metadata with existing metadata, preserving local data when in conflict.
+    """
+    # First, check if the video exists
+    video_result = video_service.get_video(video_id, channel_title)
+
+    if not video_result.success:
+        # If there's an error getting the video, try to create it
+        if request.title:  # Only create if we have at least a title
+            # Create a minimal video entry
+            create_result = video_service.create_or_update_metadata(
+                video_id=video_id,
+                channel_title=channel_title,
+                title=request.title,
+                published_at=request.published_at,
+                duration=request.duration or 0
+            )
+
+            if not create_result.success:
+                raise HTTPException(status_code=500, detail=create_result.error)
+
+            # Now get the newly created video
+            video_result = video_service.get_video(video_id, channel_title)
+            if not video_result.success:
+                raise HTTPException(status_code=500, detail=video_result.error)
+        else:
+            raise HTTPException(status_code=404, detail=f"Video {video_id} not found and insufficient data to create it")
+
+    video = video_result.data
+    if not video:
+        raise HTTPException(status_code=404, detail=f"Video {video_id} not found")
+
+    # Update the video with the provided metadata
+    # We'll implement the merge logic in the video service
+    metadata_dict = {k: v for k, v in request.dict().items() if v is not None}
+    result = video_service.update_metadata(
+        video_id=video_id,
+        channel_title=channel_title,
+        metadata=metadata_dict  # Only include fields that were provided
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=500, detail=result.error)
+
+    return {
+        "success": True,
+        "message": f"Metadata updated successfully for video {video_id}"
+    }
 
 @app.get("/statistics", response_model=StatisticsResponse, tags=["statistics"])
 def get_statistics(

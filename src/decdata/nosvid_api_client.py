@@ -158,6 +158,28 @@ class NosVidAPIClient:
             print(f"Error setting nostrmedia URL for video {video_id}: {e}")
             return False
 
+    def update_metadata(self, video_id: str, metadata: Dict[str, Any]) -> bool:
+        """
+        Update metadata for a video.
+
+        Args:
+            video_id: ID of the video
+            metadata: Dictionary containing metadata to update
+
+        Returns:
+            True if the request was successful, False otherwise
+        """
+        try:
+            response = requests.post(
+                f"{self.api_url}/videos/{video_id}/update-metadata",
+                json=metadata
+            )
+            response.raise_for_status()
+            return response.json().get('success', False)
+        except requests.exceptions.RequestException as e:
+            print(f"Error updating metadata for video {video_id}: {e}")
+            return False
+
     def get_download_status(self) -> Dict[str, Any]:
         """
         Get the current download status from the NosVid API.

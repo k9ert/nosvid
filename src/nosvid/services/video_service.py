@@ -387,6 +387,170 @@ class VideoService:
         except Exception as e:
             return Result.failure(str(e))
 
+    def create_or_update_metadata(self, video_id: str, channel_title: str, title: str,
+                               published_at: Optional[str] = None, duration: int = 0) -> Result[bool]:
+        """
+        Create or update basic metadata for a video
+
+        Args:
+            video_id: ID of the video
+            channel_title: Title of the channel
+            title: Title of the video
+            published_at: Publication date (ISO format)
+            duration: Duration in seconds
+
+        Returns:
+            Result indicating success or failure
+        """
+        try:
+            # Check if the video already exists
+            existing_video = self.video_repository.get_by_id(video_id, channel_title)
+
+            if existing_video:
+                # Update existing video
+                if not existing_video.title:
+                    existing_video.title = title
+                if not existing_video.published_at and published_at:
+                    existing_video.published_at = published_at
+                if not existing_video.duration and duration:
+                    existing_video.duration = duration
+
+                # Save the updated video
+                result = self.video_repository.save(existing_video, channel_title)
+                if not result:
+                    return Result.failure("Failed to update video metadata")
+
+                return Result.success(True)
+            else:
+                # Create a new video
+                video = Video(
+                    video_id=video_id,
+                    title=title,
+                    published_at=published_at or datetime.now().isoformat(),
+                    duration=duration,
+                    platforms={},
+                    nostr_posts=[],
+                    npubs={}
+                )
+
+                # Save the new video
+                result = self.video_repository.save(video, channel_title)
+                if not result:
+                    return Result.failure("Failed to save new video metadata")
+
+                return Result.success(True)
+        except Exception as e:
+            return Result.failure(str(e))
+
+    def update_metadata(self, video_id: str, channel_title: str, metadata: Dict[str, Any]) -> Result[bool]:
+        """
+        Update metadata for a video with merge logic
+
+        Args:
+            video_id: ID of the video
+            channel_title: Title of the channel
+            metadata: Dictionary containing metadata to update
+
+        Returns:
+            Result indicating success or failure
+        """
+        try:
+            # Get the existing video
+            video_result = self.get_video(video_id, channel_title)
+            if not video_result.success:
+                return Result.failure(f"Failed to get video: {video_result.error}")
+
+            video = video_result.data
+            if not video:
+                return Result.failure(f"Video not found: {video_id}")
+
+            # Update basic metadata if missing locally
+            if 'title' in metadata and not video.title:
+                video.title = metadata['title']
+
+            if 'published_at' in metadata and not video.published_at:
+                video.published_at = metadata['published_at']
+
+            if 'duration' in metadata and not video.duration:
+                video.duration = metadata['duration']
+
+            # Merge platform data
+            if 'platforms' in metadata and metadata['platforms']:
+                if not video.platforms:
+                    video.platforms = {}
+
+                # For each platform in remote metadata
+                for platform_name, platform_data in metadata['platforms'].items():
+                    if platform_name not in video.platforms:
+                        # Add the platform if it doesn't exist locally
+                        video.platforms[platform_name] = Platform(
+                            name=platform_name,
+                            url=platform_data.get('url', '')
+                        )
+
+                        # Copy platform-specific attributes
+                        if platform_name == 'youtube':
+                            video.platforms[platform_name].downloaded = platform_data.get('downloaded', False)
+                            video.platforms[platform_name].downloaded_at = platform_data.get('downloaded_at')
+                        elif platform_name == 'nostrmedia':
+                            video.platforms[platform_name].uploaded = platform_data.get('uploaded', False)
+                            video.platforms[platform_name].uploaded_at = platform_data.get('uploaded_at')
+                    else:
+                        # Update existing platform data
+                        local_platform = video.platforms[platform_name]
+
+                        # For YouTube, update download status if remote has it downloaded and local doesn't
+                        if platform_name == 'youtube' and not local_platform.downloaded and platform_data.get('downloaded', False):
+                            local_platform.downloaded = True
+                            local_platform.downloaded_at = platform_data.get('downloaded_at')
+
+                        # For Nostrmedia, update URL if missing locally
+                        if platform_name == 'nostrmedia' and not local_platform.url and platform_data.get('url'):
+                            local_platform.url = platform_data['url']
+                            local_platform.uploaded = platform_data.get('uploaded', False)
+                            local_platform.uploaded_at = platform_data.get('uploaded_at')
+
+            # Merge Nostr posts
+            if 'nostr_posts' in metadata and metadata['nostr_posts']:
+                # Create a set of existing event IDs
+                existing_event_ids = {post.event_id for post in video.nostr_posts if post.event_id}
+
+                # Add new posts
+                for post_data in metadata['nostr_posts']:
+                    if 'event_id' in post_data and post_data['event_id'] not in existing_event_ids:
+                        from ..models.video import NostrPost
+                        new_post = NostrPost(
+                            event_id=post_data['event_id'],
+                            pubkey=post_data.get('pubkey', ''),
+                            uploaded_at=post_data.get('uploaded_at', datetime.now().isoformat())
+                        )
+                        video.nostr_posts.append(new_post)
+                        existing_event_ids.add(post_data['event_id'])
+
+            # Merge npubs
+            if 'npubs' in metadata and metadata['npubs']:
+                if not video.npubs:
+                    video.npubs = {}
+
+                for source, npubs in metadata['npubs'].items():
+                    if source not in video.npubs:
+                        video.npubs[source] = []
+
+                    # Add new npubs
+                    video.npubs[source] = list(set(video.npubs[source] + npubs))
+
+            # Update synced_at timestamp
+            video.synced_at = datetime.now().isoformat()
+
+            # Save the updated video
+            save_result = self.save_video(video, channel_title)
+            if not save_result.success:
+                return Result.failure(f"Failed to save updated metadata: {save_result.error}")
+
+            return Result.success(True)
+        except Exception as e:
+            return Result.failure(str(e))
+
     def delete_video(self, video_id: str, channel_title: str) -> Result[bool]:
         """
         Delete a video

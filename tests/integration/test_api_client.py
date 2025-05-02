@@ -23,9 +23,16 @@ class TestApiClient(unittest.TestCase):
         # Check for the video by ID endpoint
         self.assertIn("/videos/{video_id}", endpoint_paths)
 
-        # Check for the download endpoint
+        # Check for the download endpoints
         download_paths = [route.path for route in routes if route.path.endswith("/download")]
-        self.assertIn("/videos/{video_id}/download", download_paths)
+        # Check for the new YouTube download endpoint
+        self.assertIn("/videos/{video_id}/platforms/youtube/download", download_paths)
+        # The old endpoint should still exist (as deprecated)
+        self.assertTrue(
+            "/videos/{video_id}/download" in download_paths or
+            any(route.path == "/videos/{video_id}/download" for route in routes),
+            "The deprecated download endpoint should still exist"
+        )
 
     def test_nostr_post_serialization(self):
         """Test that NostrPost objects are properly serialized"""

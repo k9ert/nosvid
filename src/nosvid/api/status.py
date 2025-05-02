@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Any
 
 from ..services.scheduler_service import SchedulerService
+from ..services.video_service import download_status
+from .models import DownloadStatusResponse
 
 # Create router
 router = APIRouter()
@@ -51,3 +53,11 @@ def disable_job(job_id: str, scheduler: SchedulerService = Depends(get_scheduler
     if not success:
         raise HTTPException(status_code=400, detail=f"Failed to disable job {job_id}")
     return {"message": f"Job {job_id} disabled successfully"}
+
+
+@router.get("/download", response_model=DownloadStatusResponse)
+def get_download_status():
+    """
+    Get the current download status
+    """
+    return download_status

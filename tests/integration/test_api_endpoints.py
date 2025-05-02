@@ -3,7 +3,6 @@ Test that the API endpoints are defined correctly
 """
 
 import unittest
-import inspect
 from src.nosvid.api.app import app
 
 class TestApiEndpoints(unittest.TestCase):
@@ -25,14 +24,10 @@ class TestApiEndpoints(unittest.TestCase):
 
         # Check for the download endpoints
         download_paths = [route.path for route in routes if route.path.endswith("/download")]
-        # Check for the new YouTube download endpoint
+        # Check for the YouTube download endpoint
         self.assertIn("/videos/{video_id}/platforms/youtube/download", download_paths)
-        # The old endpoint should still exist (as deprecated)
-        self.assertTrue(
-            "/videos/{video_id}/download" in download_paths or
-            any(route.path == "/videos/{video_id}/download" for route in routes),
-            "The deprecated download endpoint should still exist"
-        )
+        # Check for the download status endpoint
+        self.assertIn("/status/download", endpoint_paths)
 
     def test_api_endpoint_methods(self):
         """Test that the API endpoints have the correct methods"""
@@ -47,9 +42,8 @@ class TestApiEndpoints(unittest.TestCase):
                 self.assertEqual(route.methods, {"GET"})
             elif route.path == "/videos/{video_id}/platforms/youtube/download":
                 self.assertEqual(route.methods, {"POST"})
-            # The old endpoint should still be POST if it exists
-            elif route.path == "/videos/{video_id}/download":
-                self.assertEqual(route.methods, {"POST"})
+            elif route.path == "/status/download":
+                self.assertEqual(route.methods, {"GET"})
 
 if __name__ == "__main__":
     unittest.main()

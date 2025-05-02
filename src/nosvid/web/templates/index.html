@@ -707,7 +707,7 @@
 
         // Check download status from the server
         function checkDownloadStatus() {
-            fetch(`${API_URL}/download/status`)
+            fetch(`${API_URL}/status/download`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.in_progress) {

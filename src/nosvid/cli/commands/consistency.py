@@ -2,8 +2,9 @@
 Consistency check command for nosvid CLI
 """
 
+import logging
 from .base import get_channel_title
-from ...metadata.consistency import check_metadata_consistency
+from ...consistency import ConsistencyChecker
 
 def consistency_check_command(args):
     """
@@ -16,26 +17,37 @@ def consistency_check_command(args):
         int: Exit code
     """
     try:
+        # Configure logging
+        log_level = logging.DEBUG if args.verbose else logging.INFO
+        logging.basicConfig(
+            level=log_level,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        logger = logging.getLogger('nosvid.consistency')
+
         channel_title = get_channel_title()
-        print(f"Channel title: {channel_title}")
+        logger.info(f"Channel title: {channel_title}")
 
-        # Run the consistency check
-        result = check_metadata_consistency(args.output_dir, channel_title, args.fix)
+        # Create and run the consistency checker
+        checker = ConsistencyChecker(args.output_dir, channel_title, logger)
+        result = checker.check(fix_issues=args.fix)
 
-        # Print the results
-        print("\nConsistency check completed!")
-        print(f"Total videos: {result['total']}")
-        print(f"Videos checked: {result['checked']}")
-        print(f"Inconsistencies found: {result['inconsistencies']}")
-
-        if result['inconsistencies'] > 0:
-            print("\nInconsistencies:")
-            for i, issue in enumerate(result['issues'], 1):
-                print(f"{i}. {issue}")
+        # Print summary
+        inconsistencies = result['inconsistencies']
+        total = result['total']
+        if inconsistencies > 0:
+            percentage = (inconsistencies / total) * 100 if total > 0 else 0
+            logger.info(f"\nSummary: {inconsistencies} inconsistencies found in {total} videos ({percentage:.1f}%)")
+            if args.fix:
+                logger.info("All inconsistencies have been fixed.")
+            else:
+                logger.info("Run with --fix to fix these inconsistencies.")
+        else:
+            logger.info(f"\nSummary: No inconsistencies found in {total} videos. Repository is consistent!")
 
         return 0
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logging.error(f"Error: {str(e)}", exc_info=True)
         return 1
 
 def register_consistency_check_parser(subparsers):
@@ -53,4 +65,9 @@ def register_consistency_check_parser(subparsers):
         '--fix',
         action='store_true',
         help='Fix inconsistencies'
+    )
+    consistency_check_parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Enable verbose logging'
     )

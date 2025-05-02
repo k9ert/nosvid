@@ -50,7 +50,10 @@ def generate_metadata_from_files(video_dir, video_id):
                     # Convert YYYYMMDD to ISO format
                     upload_date = info['upload_date']
                     if len(upload_date) == 8:
-                        youtube_metadata['published_at'] = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:8]}T00:00:00Z"
+                        date_str = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:8]}T00:00:00Z"
+                        # Import the normalize_date function
+                        from ..utils.consistency import normalize_date
+                        youtube_metadata['published_at'] = normalize_date(date_str)
                 # Extract duration in seconds
                 if 'duration' in info:
                     youtube_metadata['duration'] = info['duration']

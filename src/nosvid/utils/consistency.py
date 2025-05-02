@@ -214,6 +214,14 @@ def check_metadata_consistency(output_dir: str, channel_title: str, fix_issues: 
         # Generate fresh metadata
         try:
             fresh_metadata = generate_metadata_from_files(video_dir, video_id)
+
+            # Normalize the published_at date in fresh metadata
+            if 'published_at' in fresh_metadata and fresh_metadata['published_at']:
+                fresh_metadata['published_at'] = normalize_date(fresh_metadata['published_at'])
+
+            # Also normalize the published_at date in existing metadata for comparison
+            if 'published_at' in existing_metadata and existing_metadata['published_at']:
+                existing_metadata['published_at'] = normalize_date(existing_metadata['published_at'])
         except Exception as e:
             print(f" - Error generating fresh metadata: {e}")
             issues.append({
@@ -298,6 +306,45 @@ def check_metadata_consistency(output_dir: str, channel_title: str, fix_issues: 
     }
 
 
+def normalize_date(date_str: str) -> str:
+    """
+    Normalize date format to ISO 8601 (YYYY-MM-DDThh:mm:ssZ)
+
+    Args:
+        date_str: Date string to normalize
+
+    Returns:
+        Normalized date string
+    """
+    if not date_str:
+        return ""
+
+    # Try different date formats
+    from datetime import datetime
+
+    # List of possible formats to try
+    formats = [
+        "%Y-%m-%dT%H:%M:%SZ",       # ISO 8601 with Z
+        "%Y-%m-%dT%H:%M:%S.%fZ",    # ISO 8601 with microseconds and Z
+        "%Y-%m-%dT%H:%M:%S",        # ISO 8601 without Z
+        "%Y-%m-%dT%H:%M:%S.%f",     # ISO 8601 with microseconds without Z
+        "%Y-%m-%d %H:%M:%S",        # Standard datetime
+        "%Y-%m-%d",                 # Just date
+        "%Y%m%d",                   # YYYYMMDD
+    ]
+
+    # Try each format
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(date_str, fmt)
+            # Return in standard ISO format
+            return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            continue
+
+    # If all formats fail, return the original string
+    return date_str
+
 def compare_metadata(existing: Dict[str, Any], fresh: Dict[str, Any]) -> List[str]:
     """
     Compare existing and fresh metadata to find differences
@@ -312,9 +359,22 @@ def compare_metadata(existing: Dict[str, Any], fresh: Dict[str, Any]) -> List[st
     differences = []
 
     # Check basic fields
-    for field in ['title', 'video_id', 'published_at', 'duration']:
+    for field in ['title', 'video_id', 'duration']:
         if field in fresh and (field not in existing or existing[field] != fresh[field]):
             differences.append(f"Different {field}")
+
+    # Special handling for published_at to normalize date formats
+    if 'published_at' in fresh:
+        if 'published_at' not in existing:
+            differences.append("Missing published_at")
+        else:
+            # Normalize both dates for comparison
+            normalized_existing = normalize_date(existing['published_at'])
+            normalized_fresh = normalize_date(fresh['published_at'])
+
+            if normalized_existing != normalized_fresh:
+                # Only consider it different if the normalized dates don't match
+                differences.append(f"Different published_at")
 
     # Check platforms
     if 'platforms' in fresh:

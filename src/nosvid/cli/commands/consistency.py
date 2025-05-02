@@ -8,7 +8,15 @@ from ...consistency import ConsistencyChecker
 
 def consistency_check_command(args):
     """
-    Check consistency of metadata.json files for all videos
+    Check consistency of the video repository in multiple stages:
+
+    1. Check metadata.json files for all videos
+    2. Verify video directories against channel_videos JSON files
+
+    When run with --fix, this command will:
+    - Recreate missing metadata.json files
+    - Update inconsistent metadata.json files
+    - Delete video directories that don't exist in channel_videos JSON files
 
     Args:
         args: Command line arguments
@@ -59,12 +67,12 @@ def register_consistency_check_parser(subparsers):
     """
     consistency_check_parser = subparsers.add_parser(
         'consistency-check',
-        help='Check consistency of metadata.json files for all videos'
+        help='Check consistency of the video repository in multiple stages'
     )
     consistency_check_parser.add_argument(
         '--fix',
         action='store_true',
-        help='Fix inconsistencies'
+        help='Fix inconsistencies (recreate metadata files, update inconsistent metadata, delete invalid directories)'
     )
     consistency_check_parser.add_argument(
         '--verbose', '-v',

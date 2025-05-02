@@ -17,7 +17,7 @@ from ..utils.filesystem import (
     get_platform_dir,
     create_safe_filename
 )
-from ..utils.youtube_api import get_channel_info, get_all_videos_from_channel
+from ..utils.youtube_api import get_channel_info, get_all_videos_from_channel, build_youtube_api
 from ..utils.nostr import process_video_directory
 from ..utils.config import get_youtube_cookies_file
 
@@ -232,17 +232,71 @@ def sync_metadata(api_key, channel_id, channel_title, output_dir, max_videos=Non
     if specific_video_id:
         print(f"Looking for specific video ID: {specific_video_id}")
         specific_video = None
+
+        # First, check if the video is in the existing videos list
         for video in videos:
             if video['video_id'] == specific_video_id:
                 specific_video = video
                 break
 
+        # If not found in the existing videos, try to fetch it directly
+        if not specific_video:
+            print(f"Video ID {specific_video_id} not found in channel videos list. Attempting to fetch directly...")
+            try:
+                # Try to fetch the video directly using the YouTube API
+                youtube = build_youtube_api(api_key)
+                request = youtube.videos().list(
+                    part="snippet",
+                    id=specific_video_id
+                )
+                response = request.execute()
+
+                if response.get('items'):
+                    item = response['items'][0]
+                    snippet = item['snippet']
+
+                    # Check if this video belongs to the specified channel
+                    if snippet.get('channelId') == channel_id:
+                        specific_video = {
+                            'title': snippet.get('title', f'Video {specific_video_id}'),
+                            'video_id': specific_video_id,
+                            'published_at': snippet.get('publishedAt', datetime.now().isoformat()),
+                            'url': f"https://www.youtube.com/watch?v={specific_video_id}"
+                        }
+                        print(f"Successfully fetched video: {specific_video['title']}")
+
+                        # Add this video to the channel_videos file
+                        videos_cache_file = os.path.join(dirs['metadata_dir'], f"channel_videos_{channel_id}.json")
+                        videos_cache = load_json_file(videos_cache_file, {'videos': []})
+
+                        # Check if the video is already in the cache
+                        video_exists = False
+                        for video in videos_cache.get('videos', []):
+                            if video.get('video_id') == specific_video_id:
+                                video_exists = True
+                                break
+
+                        # Add the video to the cache if it doesn't exist
+                        if not video_exists:
+                            videos_cache.setdefault('videos', []).append(specific_video)
+                            videos_cache['timestamp'] = datetime.now().isoformat()
+                            videos_cache['video_count'] = len(videos_cache.get('videos', []))
+                            videos_cache['channel_id'] = channel_id
+
+                            # Save the updated cache
+                            save_json_file(videos_cache_file, videos_cache)
+                            print(f"Added video {specific_video_id} to channel_videos_{channel_id}.json")
+                    else:
+                        print(f"Error: Video {specific_video_id} does not belong to channel {channel_id}")
+            except Exception as e:
+                print(f"Error fetching video {specific_video_id}: {e}")
+
         if specific_video:
-            print(f"Found specific video: {specific_video['title']}")
+            print(f"Processing video: {specific_video['title']}")
             new_videos = [specific_video]
             already_synced = 0
         else:
-            print(f"Error: Could not find video with ID {specific_video_id}")
+            print(f"Error: Could not find or fetch video with ID {specific_video_id}")
             return {
                 'total': len(videos),
                 'new_videos': 0,

@@ -32,7 +32,7 @@ class ConsistencyChecker:
         self.output_dir = output_dir
         self.channel_title = channel_title
         self.logger = logger or logging.getLogger(__name__)
-        
+
         # Set up directory structure
         self.dirs = setup_directory_structure(output_dir, channel_title)
         self.videos_dir = self.dirs['videos_dir']
@@ -58,7 +58,8 @@ class ConsistencyChecker:
         video_dirs = [d for d in os.listdir(self.videos_dir) if os.path.isdir(os.path.join(self.videos_dir, d))]
         self.logger.info(f"Found {len(video_dirs)} videos in repository")
 
-        # Process each video directory
+        # Stage 1: Check each video directory for metadata consistency
+        self.logger.info("\nStage 1: Checking metadata consistency for each video directory")
         checked = 0
         inconsistencies = 0
         issues = []
@@ -69,7 +70,7 @@ class ConsistencyChecker:
 
             # Check this video
             result = self._check_video(video_dir, video_id, fix_issues)
-            
+
             # Update counters
             checked += 1
             if result['has_issues']:
@@ -79,6 +80,15 @@ class ConsistencyChecker:
             # Print progress
             if checked % 10 == 0 or checked == len(video_dirs):
                 self.logger.info(f"Checked {checked}/{len(video_dirs)} videos")
+
+        # Stage 2: Verify video directories against channel_videos JSON files
+        self.logger.info("\nStage 2: Verifying video directories against channel_videos JSON files")
+        channel_videos_issues = self._verify_against_channel_videos(video_dirs, fix_issues)
+
+        # Add channel_videos issues to the overall issues list
+        for issue in channel_videos_issues:
+            inconsistencies += 1
+            issues.append(issue)
 
         # Print summary
         self.logger.info("\nConsistency check completed!")
@@ -93,7 +103,7 @@ class ConsistencyChecker:
                 issue_type = issue['issue']
 
                 if issue_type == 'missing_metadata':
-                    self.logger.info(f"{i}. {video_id}: Missing metadata.json file" + 
+                    self.logger.info(f"{i}. {video_id}: Missing metadata.json file" +
                                     (" (fixed)" if issue['fixed'] else ""))
                 elif issue_type == 'invalid_metadata':
                     self.logger.info(f"{i}. {video_id}: Invalid metadata.json file - {issue['error']}")
@@ -102,6 +112,15 @@ class ConsistencyChecker:
                 elif issue_type == 'inconsistent_metadata':
                     self.logger.info(f"{i}. {video_id}: Inconsistent metadata - {', '.join(issue['differences'])}" +
                                     (" (fixed)" if issue['fixed'] else ""))
+                elif issue_type == 'test_video_directory':
+                    self.logger.info(f"{i}. {video_id}: Test video directory - {issue['error']}" +
+                                    (" (fixed)" if issue.get('fixed', False) else ""))
+                elif issue_type == 'sync_history_only':
+                    self.logger.info(f"{i}. {video_id}: In sync_history.json only - {issue['error']}" +
+                                    (" (fixed)" if issue.get('fixed', False) else ""))
+                elif issue_type == 'invalid_video_directory':
+                    self.logger.info(f"{i}. {video_id}: Invalid video directory - {issue['error']}" +
+                                    (" (fixed)" if issue.get('fixed', False) else ""))
 
         return {
             'total': len(video_dirs),
@@ -161,7 +180,7 @@ class ConsistencyChecker:
         # Generate fresh metadata
         try:
             fresh_metadata = generate_metadata_from_files(video_dir, video_id)
-            
+
             # Normalize dates in both metadata objects
             existing_metadata = normalize_metadata_dates(existing_metadata)
             fresh_metadata = normalize_metadata_dates(fresh_metadata)
@@ -299,7 +318,7 @@ class ConsistencyChecker:
             additional_metadata_file = os.path.join(nostr_dir, item)
             self._process_nostr_metadata_file(additional_metadata_file, metadata, item[:-5])  # Remove .json extension
 
-    def _process_nostr_metadata_file(self, metadata_file: str, metadata: Dict[str, Any], 
+    def _process_nostr_metadata_file(self, metadata_file: str, metadata: Dict[str, Any],
                                     filename_event_id: str = None) -> None:
         """
         Process a single nostr metadata file
@@ -339,6 +358,252 @@ class ConsistencyChecker:
                 metadata['platforms']['nostr']['posts'].append(post_entry)
         except Exception as e:
             self.logger.error(f"Error processing nostr metadata file {metadata_file}: {e}")
+
+    def _verify_against_channel_videos(self, video_dirs: List[str], fix_issues: bool) -> List[Dict[str, Any]]:
+        """
+        Verify video directories against channel_videos JSON files
+
+        Args:
+            video_dirs: List of video directory names (video IDs)
+            fix_issues: Whether to fix inconsistencies
+
+        Returns:
+            List of issues found
+        """
+        issues = []
+
+        # Find all channel_videos JSON files
+        metadata_dir = self.dirs['metadata_dir']
+        channel_videos_files = [f for f in os.listdir(metadata_dir)
+                               if f.startswith('channel_videos_') and f.endswith('.json')]
+
+        if not channel_videos_files:
+            self.logger.warning("No channel_videos JSON files found")
+            return issues
+
+        # Create a set of all video IDs from channel_videos JSON files
+        valid_video_ids = set()
+        channel_id = None
+        channel_videos_data = {}
+
+        for channel_file in channel_videos_files:
+            channel_file_path = os.path.join(metadata_dir, channel_file)
+            try:
+                channel_data = load_json_file(channel_file_path)
+
+                # Store the channel data for later use
+                if 'channel_id' in channel_data:
+                    channel_id = channel_data['channel_id']
+                    channel_videos_data = channel_data
+
+                # Extract video IDs from the channel data
+                if 'videos' in channel_data and isinstance(channel_data['videos'], list):
+                    for video in channel_data['videos']:
+                        if 'video_id' in video:
+                            valid_video_ids.add(video['video_id'])
+            except Exception as e:
+                self.logger.error(f"Error loading channel videos file {channel_file}: {e}")
+
+        self.logger.info(f"Found {len(valid_video_ids)} valid video IDs in channel_videos JSON files")
+
+        # Check for sync_history.json
+        sync_history_path = os.path.join(metadata_dir, 'sync_history.json')
+        sync_history = {}
+        sync_history_ids = set()
+
+        if os.path.exists(sync_history_path):
+            try:
+                sync_history = load_json_file(sync_history_path)
+                for video_id in sync_history:
+                    sync_history_ids.add(video_id)
+                self.logger.info(f"Found {len(sync_history_ids)} video IDs in sync_history.json")
+            except Exception as e:
+                self.logger.error(f"Error loading sync_history.json: {e}")
+
+        # Check each video directory against the valid video IDs
+        invalid_dirs = []
+        test_dirs = []
+        sync_history_only_dirs = []
+
+        for video_id in video_dirs:
+            if video_id not in valid_video_ids:
+                # Check if it's a test directory
+                if video_id.startswith('test') or '_test_' in video_id:
+                    test_dirs.append(video_id)
+                    issues.append({
+                        'video_id': video_id,
+                        'issue': 'test_video_directory',
+                        'error': f"Test video directory not found in any channel_videos JSON file",
+                        'fixed': False
+                    })
+                # Check if it's in sync_history but not in channel_videos
+                elif video_id in sync_history_ids:
+                    sync_history_only_dirs.append(video_id)
+                    issues.append({
+                        'video_id': video_id,
+                        'issue': 'sync_history_only',
+                        'error': f"Video directory found in sync_history.json but not in channel_videos JSON files",
+                        'fixed': False
+                    })
+                else:
+                    invalid_dirs.append(video_id)
+                    issues.append({
+                        'video_id': video_id,
+                        'issue': 'invalid_video_directory',
+                        'error': f"Video directory not found in any channel_videos JSON file or sync_history.json",
+                        'fixed': False
+                    })
+
+        # Report findings
+        if test_dirs:
+            self.logger.warning(f"Found {len(test_dirs)} test video directories:")
+            for video_id in test_dirs:
+                self.logger.warning(f"  - {video_id}")
+
+        if sync_history_only_dirs:
+            self.logger.warning(f"Found {len(sync_history_only_dirs)} directories in sync_history.json but not in channel_videos:")
+            for video_id in sync_history_only_dirs:
+                self.logger.warning(f"  - {video_id}")
+
+        if invalid_dirs:
+            self.logger.warning(f"Found {len(invalid_dirs)} invalid video directories (not in channel_videos or sync_history):")
+            for video_id in invalid_dirs:
+                self.logger.warning(f"  - {video_id}")
+
+        # Fix issues if requested
+        if fix_issues:
+            # Only delete test directories and truly invalid directories, not sync_history ones
+            dirs_to_delete = test_dirs + invalid_dirs
+
+            if dirs_to_delete:
+                self.logger.info(f"Fixing issues by deleting {len(dirs_to_delete)} test/invalid video directories...")
+                fixed_count = 0
+                for video_id in dirs_to_delete:
+                    video_dir = os.path.join(self.videos_dir, video_id)
+                    try:
+                        # Delete the directory
+                        import shutil
+                        shutil.rmtree(video_dir)
+                        self.logger.info(f"Deleted directory: {video_dir}")
+
+                        # Mark as fixed in the issue
+                        for issue in issues:
+                            if issue['video_id'] == video_id:
+                                issue['fixed'] = True
+                                break
+
+                        fixed_count += 1
+                    except Exception as e:
+                        self.logger.error(f"Error deleting directory {video_dir}: {e}")
+
+                self.logger.info(f"Successfully deleted {fixed_count} out of {len(dirs_to_delete)} directories")
+
+            # Fix sync_history_only directories by adding them to channel_videos
+            if sync_history_only_dirs and channel_id:
+                self.logger.info(f"Attempting to fix {len(sync_history_only_dirs)} directories found in sync_history.json...")
+
+                # Get the API key from config
+                try:
+                    from ..utils.config import load_config
+                    config = load_config()
+                    api_key = config.get('youtube', {}).get('api_key')
+
+                    if not api_key:
+                        self.logger.error("No YouTube API key found in config. Cannot fix sync_history discrepancies.")
+                    else:
+                        # Import the YouTube API functions
+                        from ..utils.youtube_api import build_youtube_api
+
+                        # Initialize YouTube API
+                        youtube = build_youtube_api(api_key)
+
+                        # Process each video in sync_history_only_dirs
+                        fixed_count = 0
+                        for video_id in sync_history_only_dirs:
+                            try:
+                                self.logger.info(f"Fetching metadata for video {video_id} from YouTube API...")
+
+                                # Get video info from sync_history
+                                video_info = sync_history.get(video_id, {})
+
+                                # Try to fetch the video directly using the YouTube API
+                                request = youtube.videos().list(
+                                    part="snippet",
+                                    id=video_id
+                                )
+                                response = request.execute()
+
+                                if response.get('items'):
+                                    item = response['items'][0]
+                                    snippet = item['snippet']
+
+                                    # Check if this video belongs to the specified channel
+                                    if snippet.get('channelId') == channel_id:
+                                        # Create video entry
+                                        video_entry = {
+                                            'title': snippet.get('title', video_info.get('title', f'Video {video_id}')),
+                                            'video_id': video_id,
+                                            'published_at': snippet.get('publishedAt', video_info.get('published_at', '')),
+                                            'url': f"https://www.youtube.com/watch?v={video_id}"
+                                        }
+
+                                        # Add to channel_videos data
+                                        if 'videos' not in channel_videos_data:
+                                            channel_videos_data['videos'] = []
+
+                                        # Check if video already exists
+                                        video_exists = False
+                                        for video in channel_videos_data['videos']:
+                                            if video.get('video_id') == video_id:
+                                                video_exists = True
+                                                break
+
+                                        if not video_exists:
+                                            channel_videos_data['videos'].append(video_entry)
+
+                                            # Mark as fixed in the issue
+                                            for issue in issues:
+                                                if issue['video_id'] == video_id:
+                                                    issue['fixed'] = True
+                                                    break
+
+                                            fixed_count += 1
+                                            self.logger.info(f"Added video {video_id} to channel_videos_{channel_id}.json")
+                                    else:
+                                        self.logger.warning(f"Video {video_id} does not belong to channel {channel_id}")
+                                else:
+                                    self.logger.warning(f"Could not fetch video {video_id} from YouTube API")
+                            except Exception as e:
+                                self.logger.error(f"Error processing video {video_id}: {e}")
+
+                        # Update channel_videos timestamp and count
+                        if fixed_count > 0:
+                            channel_videos_data['timestamp'] = datetime.now().isoformat()
+                            channel_videos_data['video_count'] = len(channel_videos_data.get('videos', []))
+
+                            # Save updated channel_videos file
+                            channel_videos_file = os.path.join(metadata_dir, f"channel_videos_{channel_id}.json")
+                            save_json_file(channel_videos_file, channel_videos_data)
+                            self.logger.info(f"Successfully added {fixed_count} videos to channel_videos_{channel_id}.json")
+
+                        if fixed_count < len(sync_history_only_dirs):
+                            self.logger.info(f"Could not fix {len(sync_history_only_dirs) - fixed_count} videos. "
+                                            f"These may require manual intervention.")
+                except ImportError:
+                    self.logger.error("Could not import required modules to fix sync_history discrepancies.")
+                except Exception as e:
+                    self.logger.error(f"Error fixing sync_history discrepancies: {e}")
+        else:
+            if test_dirs or invalid_dirs:
+                self.logger.info("To delete test and invalid directories, run with --fix")
+
+            if sync_history_only_dirs:
+                self.logger.info("To fix sync_history discrepancies, run with --fix")
+
+        if not (test_dirs or sync_history_only_dirs or invalid_dirs):
+            self.logger.info("All video directories are valid and exist in channel_videos JSON files")
+
+        return issues
 
     def _empty_result(self) -> Dict[str, Any]:
         """

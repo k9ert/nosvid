@@ -65,6 +65,29 @@ class PlatformResponse(BaseModel):
     data: Dict[str, Any] = {}
 
 
+class YouTubePlatformData(BaseModel):
+    """Model for YouTube platform data"""
+    metadata: Optional[Dict[str, Any]] = None
+    info: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
+    live_chat: Optional[Dict[str, Any]] = None
+    subtitles: Optional[Dict[str, Dict[str, str]]] = None
+    description_files: Optional[Dict[str, str]] = None
+    info_files: Optional[Dict[str, Dict[str, Any]]] = None
+    live_chat_files: Optional[Dict[str, Dict[str, Any]]] = None
+    thumbnails: Optional[List[str]] = None
+    video_files: Optional[List[str]] = None
+    other_files: Optional[List[str]] = None
+
+
+class YouTubePlatformRequest(BaseModel):
+    """Request model for creating YouTube platform data"""
+    url: str
+    downloaded: bool = True
+    downloaded_at: Optional[str] = None
+    data: YouTubePlatformData
+
+
 # Download models
 class DownloadRequest(BaseModel):
     """Request model for downloading a video"""

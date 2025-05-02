@@ -551,6 +551,66 @@ class VideoService:
         except Exception as e:
             return Result.failure(str(e))
 
+    def set_platform_data(self, video_id: str, channel_title: str, platform_name: str,
+                       platform_url: str, downloaded: bool = False, downloaded_at: str = None,
+                       uploaded: bool = False, uploaded_at: str = None) -> Result[bool]:
+        """
+        Set platform-specific data for a video
+
+        Args:
+            video_id: ID of the video
+            channel_title: Title of the channel
+            platform_name: Name of the platform (e.g., 'youtube', 'nostrmedia')
+            platform_url: URL of the video on the platform
+            downloaded: Whether the video has been downloaded
+            downloaded_at: When the video was downloaded (ISO format)
+            uploaded: Whether the video has been uploaded
+            uploaded_at: When the video was uploaded (ISO format)
+
+        Returns:
+            Result indicating success or failure
+        """
+        try:
+            # Get the video
+            video_result = self.get_video(video_id, channel_title)
+            if not video_result.success:
+                return Result.failure(f"Failed to get video: {video_result.error}")
+
+            video = video_result.data
+            if not video:
+                return Result.failure(f"Video not found: {video_id}")
+
+            # Initialize platforms if needed
+            if not video.platforms:
+                video.platforms = {}
+
+            # Create or update the platform
+            if platform_name not in video.platforms:
+                video.platforms[platform_name] = Platform(
+                    name=platform_name,
+                    url=platform_url
+                )
+
+            # Update platform-specific attributes
+            platform = video.platforms[platform_name]
+            platform.url = platform_url
+
+            if platform_name == 'youtube':
+                platform.downloaded = downloaded
+                platform.downloaded_at = downloaded_at or datetime.now().isoformat()
+            elif platform_name == 'nostrmedia':
+                platform.uploaded = uploaded
+                platform.uploaded_at = uploaded_at or datetime.now().isoformat()
+
+            # Save the updated video
+            save_result = self.save_video(video, channel_title)
+            if not save_result.success:
+                return Result.failure(f"Failed to save video metadata: {save_result.error}")
+
+            return Result.success(True)
+        except Exception as e:
+            return Result.failure(str(e))
+
     def delete_video(self, video_id: str, channel_title: str) -> Result[bool]:
         """
         Delete a video

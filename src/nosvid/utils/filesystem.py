@@ -136,3 +136,49 @@ def load_text_file(file_path, default=None):
             return default
 
     return default
+
+
+def save_text_file(file_path, content):
+    """
+    Save text to file
+
+    Args:
+        file_path: Path to text file
+        content: Content to save
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return True
+    except Exception as e:
+        print(f"Error saving file {file_path}: {e}")
+        return False
+
+
+def save_json_file(file_path, data):
+    """
+    Save JSON data to file
+
+    Args:
+        file_path: Path to JSON file
+        data: Data to save
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving JSON file {file_path}: {e}")
+        return False

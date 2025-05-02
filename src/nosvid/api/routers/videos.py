@@ -170,7 +170,7 @@ def update_video_metadata(
 
     # Update the video with the provided metadata
     # We'll implement the merge logic in the video service
-    metadata_dict = {k: v for k, v in request.dict().items() if v is not None}
+    metadata_dict = {k: v for k, v in request.model_dump().items() if v is not None}
     result = video_service.update_metadata(
         video_id=video_id,
         channel_title=channel_title,

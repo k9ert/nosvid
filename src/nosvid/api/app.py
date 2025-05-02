@@ -5,7 +5,7 @@ FastAPI application for nosvid
 from fastapi import FastAPI
 
 # Import routers
-from .routers import videos, platforms, download, statistics
+from .routers import videos, platforms, statistics
 from .status import router as status_router
 
 # Create FastAPI application
@@ -16,7 +16,6 @@ app = FastAPI(
     openapi_tags=[
         {"name": "videos", "description": "Operations with videos"},
         {"name": "platforms", "description": "Platform-specific operations"},
-        {"name": "download", "description": "Download operations"},
         {"name": "status", "description": "Status and scheduled jobs"},
         {"name": "statistics", "description": "Repository statistics"}
     ]
@@ -25,6 +24,5 @@ app = FastAPI(
 # Include routers
 app.include_router(videos.router, prefix="/videos", tags=["videos"])
 app.include_router(platforms.router, prefix="/videos", tags=["platforms"])
-app.include_router(download.router, prefix="/download", tags=["download"])
 app.include_router(status_router, prefix="/status", tags=["status"])
 app.include_router(statistics.router, prefix="/statistics", tags=["statistics"])

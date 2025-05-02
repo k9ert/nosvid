@@ -55,9 +55,20 @@ def disable_job(job_id: str, scheduler: SchedulerService = Depends(get_scheduler
     return {"message": f"Job {job_id} disabled successfully"}
 
 
-@router.get("/download", response_model=DownloadStatusResponse)
+@router.get("/download", response_model=DownloadStatusResponse, tags=["status"])
 def get_download_status():
     """
     Get the current download status
+
+    This endpoint returns information about any ongoing download operations.
+
+    The response includes:
+    - **in_progress**: Whether a download is currently in progress
+    - **video_id**: The ID of the video being downloaded (if any)
+    - **started_at**: When the download started (ISO format)
+    - **user**: Identifier for the user who initiated the download
+
+    This endpoint is useful for monitoring download progress and preventing
+    concurrent downloads that could cause conflicts.
     """
     return download_status

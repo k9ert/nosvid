@@ -14,7 +14,8 @@ from ...utils.filesystem import get_video_dir, get_platform_dir, load_json_file,
 from ..dependencies import get_video_service, get_channel_title
 from ..models import (
     DownloadRequest, DownloadResponse, NostrmediaUploadRequest,
-    NostrmediaUrlRequest, PlatformResponse, YouTubePlatformRequest
+    NostrmediaUrlRequest, PlatformResponse, YouTubePlatformRequest,
+    SyncMetadataRequest
 )
 
 # Create router
@@ -152,6 +153,70 @@ def get_youtube_platform(
     }
 
 
+@router.post("/{video_id}/platforms/youtube", response_model=DownloadResponse, tags=["platforms"])
+def sync_youtube_metadata(
+    video_id: str,
+    request: SyncMetadataRequest = None,
+    channel_title: str = Depends(get_channel_title),
+    video_service: VideoService = Depends(get_video_service)
+):
+    """
+    Sync metadata for a video from YouTube
+
+    This endpoint downloads metadata for a video from YouTube without downloading the actual video file.
+    It creates or updates the YouTube platform data for the specified video.
+
+    - **video_id**: The YouTube video ID
+    - **request**: Optional JSON payload with a force_refresh flag to force refresh from YouTube API
+
+    If no request body is provided, it will use default settings.
+
+    Returns a success message if the metadata was successfully synced.
+    """
+    # Default to an empty request if none is provided
+    if request is None:
+        request = SyncMetadataRequest()
+
+    # Call the sync_youtube_metadata method from the video service
+    from ...utils.config import read_api_key_from_yaml
+    from ...metadata.sync import sync_metadata
+
+    try:
+        # Load API key
+        api_key = read_api_key_from_yaml('youtube', 'youtube.key')
+
+        # Hardcoded channel ID for Einundzwanzig Podcast
+        channel_id = "UCxSRxq14XIoMbFDEjMOPU5Q"
+
+        # Sync metadata for the specific video
+        result = sync_metadata(
+            api_key=api_key,
+            channel_id=channel_id,
+            channel_title=channel_title,
+            output_dir="./repository",
+            max_videos=1,
+            delay=0,
+            force_refresh=request.force_refresh,
+            specific_video_id=video_id
+        )
+
+        if result['successful'] > 0:
+            return {
+                "success": True,
+                "message": f"Successfully synced metadata for video: {video_id}"
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to sync metadata for video: {video_id}"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error syncing metadata: {str(e)}"
+        )
+
+
 @router.post("/{video_id}/platforms/youtube/download", response_model=DownloadResponse)
 def download_youtube_video(
     video_id: str,
@@ -253,7 +318,7 @@ def set_nostrmedia_url(
     }
 
 
-@router.post("/{video_id}/platforms/youtube", response_model=DownloadResponse)
+@router.post("/{video_id}/platforms/youtube", response_model=DownloadResponse, tags=["platforms"])
 def create_youtube_platform(
     video_id: str,
     request: YouTubePlatformRequest,
@@ -261,12 +326,19 @@ def create_youtube_platform(
     video_service: VideoService = Depends(get_video_service)
 ):
     """
-    Create YouTube platform data for a video
+    Create YouTube platform data for a video from provided JSON data
 
     This endpoint accepts a JSON payload with the same structure as what the GET endpoint produces
     and creates the YouTube folder and files based on this data.
 
-    The folder must not already exist, otherwise an error is returned.
+    - **video_id**: The YouTube video ID
+    - **request**: JSON payload containing YouTube platform data
+
+    The folder must not already exist with content, otherwise an error is returned.
+
+    If the video doesn't exist in the database, it will be created with minimal metadata.
+
+    Returns a success message if the platform data was successfully created.
     """
     # First, check if the video exists
     video_result = video_service.get_video(video_id, channel_title)

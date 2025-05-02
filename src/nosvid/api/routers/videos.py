@@ -188,7 +188,7 @@ def update_video_metadata(
     }
 
 
-@router.get("/{video_id}/mp4")
+@router.get("/{video_id}/mp4", tags=["videos"])
 def get_video_mp4(
     video_id: str,
     channel_title: str = Depends(get_channel_title),
@@ -197,10 +197,17 @@ def get_video_mp4(
     """
     Get the MP4 video file
 
-    This endpoint will:
-    - Return a redirect to the nostrmedia URL if available
-    - Return the local MP4 file if available
-    - Return a 404 if neither is available
+    This endpoint provides a unified way to access video files regardless of where they are stored.
+
+    - **video_id**: The YouTube video ID
+
+    The endpoint follows this priority order:
+    1. If the video has a nostrmedia URL, it will redirect to that URL
+    2. If the video has a local MP4 file, it will serve that file directly
+    3. If neither is available, it will return a 404 error
+
+    This allows clients to use a single endpoint for accessing videos without needing to know
+    where the video is actually stored.
     """
     # First, check if the video exists
     video_result = video_service.get_video(video_id, channel_title)

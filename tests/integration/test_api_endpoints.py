@@ -45,6 +45,12 @@ class TestApiEndpoints(unittest.TestCase):
                 self.assertEqual(route.methods, {"GET"})
             elif route.path == "/videos/{video_id}/mp4":
                 self.assertEqual(route.methods, {"GET"})
+            elif route.path == "/videos/{video_id}/platforms/youtube":
+                # Check if either GET or POST is in the methods
+                self.assertTrue(
+                    "GET" in route.methods or "POST" in route.methods,
+                    f"Expected either GET or POST method, got {route.methods}"
+                )
             elif route.path == "/videos/{video_id}/platforms/youtube/download":
                 self.assertEqual(route.methods, {"POST"})
             elif route.path == "/status/download":

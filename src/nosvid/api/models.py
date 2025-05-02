@@ -94,6 +94,11 @@ class DownloadRequest(BaseModel):
     quality: str = "best"
 
 
+class SyncMetadataRequest(BaseModel):
+    """Request model for syncing metadata"""
+    force_refresh: bool = False
+
+
 class DownloadResponse(BaseModel):
     """Response model for downloading a video"""
     success: bool

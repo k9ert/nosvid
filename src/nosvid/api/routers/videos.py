@@ -6,11 +6,13 @@ import os
 import glob
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import RedirectResponse, FileResponse
 from typing import List, Optional, Dict, Any
 
 from ...services.video_service import VideoService
 from ...utils.filesystem import get_video_dir, get_platform_dir, load_json_file, load_text_file
+from ...platforms.youtube import find_youtube_video_file
 from ..dependencies import get_video_service, get_channel_title
 from ..models import (
     VideoResponse, VideoListResponse, DownloadRequest, DownloadResponse,
@@ -184,3 +186,54 @@ def update_video_metadata(
         "success": True,
         "message": f"Metadata updated successfully for video {video_id}"
     }
+
+
+@router.get("/{video_id}/mp4")
+def get_video_mp4(
+    video_id: str,
+    channel_title: str = Depends(get_channel_title),
+    video_service: VideoService = Depends(get_video_service)
+):
+    """
+    Get the MP4 video file
+
+    This endpoint will:
+    - Return a redirect to the nostrmedia URL if available
+    - Return the local MP4 file if available
+    - Return a 404 if neither is available
+    """
+    # First, check if the video exists
+    video_result = video_service.get_video(video_id, channel_title)
+
+    if not video_result.success:
+        raise HTTPException(status_code=500, detail=video_result.error)
+
+    video = video_result.data
+    if not video:
+        raise HTTPException(status_code=404, detail=f"Video {video_id} not found")
+
+    # Check if the video has a nostrmedia URL
+    if video.platforms and 'nostrmedia' in video.platforms and video.platforms['nostrmedia'].url:
+        # Redirect to the nostrmedia URL
+        return RedirectResponse(url=video.platforms['nostrmedia'].url)
+
+    # If no nostrmedia URL, try to find the local file
+    videos_dir = os.path.join(video_service.video_repository.base_dir, channel_title, "videos")
+    video_dir = get_video_dir(videos_dir, video_id)
+
+    # Find the video file
+    video_file = find_youtube_video_file(video_dir)
+
+    if video_file and os.path.exists(video_file):
+        # Return the local file
+        return FileResponse(
+            path=video_file,
+            filename=os.path.basename(video_file),
+            media_type="video/mp4"
+        )
+
+    # If no file is found, return a 404
+    raise HTTPException(
+        status_code=404,
+        detail=f"No MP4 file found for video {video_id}"
+    )

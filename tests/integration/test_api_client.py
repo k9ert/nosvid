@@ -23,6 +23,9 @@ class TestApiClient(unittest.TestCase):
         # Check for the video by ID endpoint
         self.assertIn("/videos/{video_id}", endpoint_paths)
 
+        # Check for the video MP4 endpoint
+        self.assertIn("/videos/{video_id}/mp4", endpoint_paths)
+
         # Check for the download endpoints
         download_paths = [route.path for route in routes if route.path.endswith("/download")]
         # Check for the YouTube download endpoint

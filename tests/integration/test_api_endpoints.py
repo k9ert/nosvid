@@ -22,6 +22,9 @@ class TestApiEndpoints(unittest.TestCase):
         # Check for the video by ID endpoint
         self.assertIn("/videos/{video_id}", endpoint_paths)
 
+        # Check for the video MP4 endpoint
+        self.assertIn("/videos/{video_id}/mp4", endpoint_paths)
+
         # Check for the download endpoints
         download_paths = [route.path for route in routes if route.path.endswith("/download")]
         # Check for the YouTube download endpoint
@@ -39,6 +42,8 @@ class TestApiEndpoints(unittest.TestCase):
             if route.path == "/videos":
                 self.assertEqual(route.methods, {"GET"})
             elif route.path == "/videos/{video_id}":
+                self.assertEqual(route.methods, {"GET"})
+            elif route.path == "/videos/{video_id}/mp4":
                 self.assertEqual(route.methods, {"GET"})
             elif route.path == "/videos/{video_id}/platforms/youtube/download":
                 self.assertEqual(route.methods, {"POST"})

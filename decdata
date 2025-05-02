@@ -213,6 +213,8 @@ def interactive_mode(args):
     """
     import cmd
     import time
+    import json
+    import hashlib
 
     class DecDataShell(cmd.Cmd):
         intro = 'Welcome to DecData interactive shell. Type help or ? to list commands.\n'
@@ -221,6 +223,31 @@ def interactive_mode(args):
         def __init__(self, node):
             super().__init__()
             self.node = node
+            self.last_search_id = None
+            self.last_request_id = None
+
+        def _get_peer(self, peer_idx):
+            """Helper to get a peer by index"""
+            peers = self.node.get_peers()
+            if not peers:
+                print("No connected peers")
+                return None
+
+            try:
+                peer_idx = int(peer_idx) - 1
+                if 0 <= peer_idx < len(peers):
+                    return peers[peer_idx]
+                else:
+                    print(f"Invalid peer index. Use 1-{len(peers)}")
+                    return None
+            except ValueError:
+                print("Peer index must be a number")
+                return None
+
+        def _print_json(self, data):
+            """Helper to print JSON data nicely"""
+            import json
+            print(json.dumps(data, indent=2))
 
         def do_connect(self, arg):
             'Connect to a remote node: connect <host> <port>'
@@ -234,38 +261,220 @@ def interactive_mode(args):
             except ValueError:
                 print("Usage: connect <host> <port>")
 
-        def do_peers(self, arg):
+        def do_peers(self, _):
             'List connected peers'
             peers = self.node.get_peers()
             if not peers:
                 print("No connected peers")
             else:
+                print("\nConnected peers:")
+                print("-" * 40)
                 for i, peer in enumerate(peers, 1):
-                    print(f"{i}. {peer.host}:{peer.port}")
+                    print(f"{i}. {peer.host}:{peer.port} (ID: {peer.id})")
+                print("-" * 40)
 
         def do_send(self, arg):
-            'Send a message to all peers: send <message>'
+            'Send a simple message to all peers: send <message>'
             if not arg:
                 print("Usage: send <message>")
                 return
-            self.node.send_to_nodes({"type": "message", "content": arg})
-            print(f"Message sent: {arg}")
+
+            message = {"type": "message", "content": arg}
+            print("\nSending message to all peers:")
+            self._print_json(message)
+
+            self.node.send_to_nodes(json.dumps(message))
+            print("Message sent to all peers")
 
         def do_sendto(self, arg):
-            'Send a message to a specific peer: sendto <peer_index> <message>'
+            'Send a simple message to a specific peer: sendto <peer_index> <message>'
             try:
-                peer_idx, message = arg.split(maxsplit=1)
-                peer_idx = int(peer_idx) - 1
-                peers = self.node.get_peers()
-                if 0 <= peer_idx < len(peers):
-                    peers[peer_idx].send({"type": "message", "content": message})
-                    print(f"Message sent to peer {peer_idx + 1}: {message}")
-                else:
-                    print("Invalid peer index")
+                peer_idx, message_text = arg.split(maxsplit=1)
+                peer = self._get_peer(peer_idx)
+                if not peer:
+                    return
+
+                message = {"type": "message", "content": message_text}
+                print(f"\nSending message to peer {peer_idx}:")
+                self._print_json(message)
+
+                self.node.send_to_node(peer, json.dumps(message))
+                print(f"Message sent to peer {peer_idx}")
             except ValueError:
                 print("Usage: sendto <peer_index> <message>")
 
-        def do_exit(self, arg):
+        def do_catalog(self, arg):
+            'Request catalog from a specific peer: catalog <peer_index>'
+            if not arg:
+                print("Usage: catalog <peer_index>")
+                return
+
+            peer = self._get_peer(arg)
+            if not peer:
+                return
+
+            # The catalog is automatically exchanged when connecting,
+            # but we can request it explicitly
+            message = {
+                "type": "catalog",
+                "node_id": self.node.id,
+                "videos": list(self.node.video_catalog.keys())
+            }
+
+            print(f"\nSending catalog request to peer {arg}:")
+            self._print_json(message)
+
+            self.node.send_to_node(peer, json.dumps(message))
+            print(f"Catalog request sent to peer {arg}")
+
+        def do_search(self, arg):
+            'Search for videos: search <peer_index> [--id VIDEO_ID] [--query TEXT]'
+            args = arg.split()
+            if not args:
+                print("Usage: search <peer_index> [--id VIDEO_ID] [--query TEXT]")
+                return
+
+            peer_idx = args[0]
+            peer = self._get_peer(peer_idx)
+            if not peer:
+                return
+
+            # Parse arguments
+            video_id = None
+            query = None
+            i = 1
+            while i < len(args):
+                if args[i] == '--id' and i+1 < len(args):
+                    video_id = args[i+1]
+                    i += 2
+                elif args[i] == '--query' and i+1 < len(args):
+                    query = args[i+1]
+                    i += 2
+                else:
+                    i += 1
+
+            if not video_id and not query:
+                print("Error: Either --id or --query must be specified")
+                return
+
+            # Create search message
+            import hashlib
+            import time
+            search_id = hashlib.md5(f"{time.time()}-{query}-{video_id}".encode()).hexdigest()
+            self.last_search_id = search_id
+
+            message = {
+                "type": "search",
+                "search_id": search_id,
+                "query": query,
+                "video_id": video_id
+            }
+
+            print(f"\nSending search request to peer {peer_idx}:")
+            self._print_json(message)
+
+            self.node.send_to_node(peer, json.dumps(message))
+            print(f"Search request sent to peer {peer_idx} (Search ID: {search_id})")
+
+        def do_download(self, arg):
+            'Request to download a video: download <peer_index> <video_id>'
+            args = arg.split()
+            if len(args) != 2:
+                print("Usage: download <peer_index> <video_id>")
+                return
+
+            peer_idx, video_id = args
+            peer = self._get_peer(peer_idx)
+            if not peer:
+                return
+
+            # Create download request
+            import hashlib
+            import time
+            request_id = hashlib.md5(f"{time.time()}-{video_id}".encode()).hexdigest()
+            self.last_request_id = request_id
+
+            message = {
+                "type": "download_request",
+                "request_id": request_id,
+                "video_id": video_id
+            }
+
+            print(f"\nSending download request to peer {peer_idx}:")
+            self._print_json(message)
+
+            self.node.send_to_node(peer, json.dumps(message))
+            print(f"Download request sent to peer {peer_idx} (Request ID: {request_id})")
+
+        def do_video_info(self, arg):
+            'Request video information: video_info <peer_index> <video_id>'
+            args = arg.split()
+            if len(args) != 2:
+                print("Usage: video_info <peer_index> <video_id>")
+                return
+
+            peer_idx, video_id = args
+            peer = self._get_peer(peer_idx)
+            if not peer:
+                return
+
+            # Create video info request
+            import hashlib
+            import time
+            request_id = hashlib.md5(f"{time.time()}-{video_id}".encode()).hexdigest()
+            self.last_request_id = request_id
+
+            message = {
+                "type": "video_info_request",
+                "request_id": request_id,
+                "video_id": video_id
+            }
+
+            print(f"\nSending video info request to peer {peer_idx}:")
+            self._print_json(message)
+
+            self.node.send_to_node(peer, json.dumps(message))
+            print(f"Video info request sent to peer {peer_idx} (Request ID: {request_id})")
+
+        def do_local_catalog(self, _):
+            'Show the local video catalog'
+            if not self.node.video_catalog:
+                print("Local catalog is empty")
+                return
+
+            print("\nLocal video catalog:")
+            print("-" * 60)
+            for video_id, metadata in self.node.video_catalog.items():
+                title = metadata.get('title', 'Unknown')
+                print(f"- {video_id}: {title}")
+            print("-" * 60)
+
+        def do_peer_catalog(self, arg):
+            'Show the catalog of a specific peer: peer_catalog <peer_index>'
+            if not arg:
+                print("Usage: peer_catalog <peer_index>")
+                return
+
+            peer = self._get_peer(arg)
+            if not peer:
+                return
+
+            if peer.id not in self.node.peers_catalog:
+                print(f"No catalog available for peer {arg}")
+                return
+
+            videos = self.node.peers_catalog[peer.id]
+            if not videos:
+                print(f"Peer {arg} has an empty catalog")
+                return
+
+            print(f"\nCatalog for peer {arg}:")
+            print("-" * 60)
+            for video_id in videos:
+                print(f"- {video_id}")
+            print("-" * 60)
+
+        def do_exit(self, _):
             'Exit the shell'
             print("Stopping node...")
             self.node.stop()
@@ -286,21 +495,24 @@ def interactive_mode(args):
     )
 
     # Add a message handler for the interactive mode
-    def message_handler(node, peer, data):
+    def message_handler(_, peer, data):
         try:
             # Handle different data types
+            import json
             if isinstance(data, dict):
                 message = data
             elif isinstance(data, str):
-                import json
                 message = json.loads(data)
             else:
                 # Not a message we can handle
                 return
 
-            if message.get("type") == "message":
-                print(f"\nReceived from {peer.host}:{peer.port}: {message.get('content', '')}")
-                print(f"{DecDataShell.prompt}", end='', flush=True)
+            # Print the received message
+            print(f"\nReceived message from {peer.host}:{peer.port}:")
+            print("-" * 60)
+            print(json.dumps(message, indent=2))
+            print("-" * 60)
+            print(f"{DecDataShell.prompt}", end='', flush=True)
         except Exception as e:
             print(f"\nError handling message: {e}")
             print(f"{DecDataShell.prompt}", end='', flush=True)

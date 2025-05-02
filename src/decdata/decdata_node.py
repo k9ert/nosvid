@@ -137,17 +137,49 @@ class DecDataNode(Node):
     def sync_with_nosvid(self):
         """
         Periodically sync with the NosVid API.
+        Uses pagination to fetch all videos.
         """
         while not self.sync_stop_event.is_set():
             try:
                 print("Syncing with NosVid API...")
 
-                # Get videos from NosVid API
-                response = self.nosvid_api.list_videos(limit=100)
-                videos = response.get('videos', [])
+                # Initialize variables for pagination
+                offset = 0
+                batch_size = 100
+                total_videos = 0
+                all_videos = []
 
-                # Update local catalog
-                for video in videos:
+                # Fetch all videos using pagination
+                while True:
+                    # Check if we should stop
+                    if self.sync_stop_event.is_set():
+                        return
+
+                    # Get a batch of videos from NosVid API
+                    response = self.nosvid_api.list_videos(limit=batch_size, offset=offset)
+                    videos_batch = response.get('videos', [])
+                    total_count = response.get('total', 0)
+
+                    if not videos_batch:
+                        break
+
+                    # Add this batch to our collection
+                    all_videos.extend(videos_batch)
+                    total_videos += len(videos_batch)
+
+                    # Print progress
+                    print(f"Syncing {total_videos}/{total_count} videos...")
+
+                    # If we've fetched all videos, break
+                    if total_videos >= total_count or len(videos_batch) < batch_size:
+                        break
+
+                    # Move to the next batch
+                    offset += batch_size
+
+                # Update local catalog with downloaded videos
+                downloaded_count = 0
+                for video in all_videos:
                     video_id = video.get('video_id')
                     if video_id:
                         # Check if the video has been downloaded
@@ -163,8 +195,9 @@ class DecDataNode(Node):
                                 'duration': video.get('duration', 0),
                                 'platforms': platforms
                             }
+                            downloaded_count += 1
 
-                print(f"Synced {len(videos)} videos from NosVid API, {len(self.video_catalog)} in local catalog")
+                print(f"Synced {total_videos} videos from NosVid API, {downloaded_count} downloaded videos in local catalog")
 
                 # Sleep until next sync
                 for _ in range(self.sync_interval):
@@ -527,14 +560,43 @@ class DecDataNode(Node):
     def load_local_catalog(self):
         """
         Load the local video catalog from the NosVid API.
+        Uses pagination to fetch all videos.
         """
         try:
-            # Get videos from NosVid API
-            response = self.nosvid_api.list_videos(limit=100)
-            videos = response.get('videos', [])
+            # Initialize variables for pagination
+            offset = 0
+            batch_size = 100
+            total_videos = 0
+            all_videos = []
 
-            # Update local catalog
-            for video in videos:
+            print("Loading videos from NosVid API (this may take a while)...")
+
+            # Fetch all videos using pagination
+            while True:
+                # Get a batch of videos from NosVid API
+                response = self.nosvid_api.list_videos(limit=batch_size, offset=offset)
+                videos_batch = response.get('videos', [])
+                total_count = response.get('total', 0)
+
+                if not videos_batch:
+                    break
+
+                # Add this batch to our collection
+                all_videos.extend(videos_batch)
+                total_videos += len(videos_batch)
+
+                # Print progress
+                print(f"Loaded {total_videos}/{total_count} videos...")
+
+                # If we've fetched all videos, break
+                if total_videos >= total_count or len(videos_batch) < batch_size:
+                    break
+
+                # Move to the next batch
+                offset += batch_size
+
+            # Update local catalog with downloaded videos
+            for video in all_videos:
                 video_id = video.get('video_id')
                 if video_id:
                     # Check if the video has been downloaded
@@ -551,7 +613,7 @@ class DecDataNode(Node):
                             'platforms': platforms
                         }
 
-            print(f"Loaded {len(self.video_catalog)} videos from NosVid API")
+            print(f"Loaded {len(self.video_catalog)} downloaded videos out of {total_videos} total videos from NosVid API")
 
         except Exception as e:
             print(f"Error loading videos from NosVid API: {e}")

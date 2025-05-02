@@ -15,7 +15,7 @@ from ..services.video_service import VideoService, download_status
 from ..services.scheduler_service import SchedulerService
 from ..repo.video_repo import FileSystemVideoRepo
 from ..models.video import Video, Platform, NostrPost
-from ..utils.filesystem import get_video_dir, get_platform_dir, load_json_file
+from ..utils.filesystem import get_video_dir, get_platform_dir, load_json_file, load_text_file
 
 # Import routers
 from .status import router as status_router
@@ -370,6 +370,12 @@ def get_youtube_platform(
 ):
     """
     Get YouTube-specific data for a video
+
+    Returns all data from the YouTube folder, including:
+    - metadata.json content
+    - description file content
+    - info.json content
+    - live chat content
     """
     # Get the video
     result = video_service.get_video(video_id, channel_title)
@@ -399,35 +405,83 @@ def get_youtube_platform(
     video_dir = get_video_dir(videos_dir, video_id)
     youtube_dir = get_platform_dir(video_dir, 'youtube')
 
-    additional_data = {}
+    folder_data = {}
 
     # Check if the youtube directory exists
     if os.path.exists(youtube_dir):
-        # Check for info.json
-        info_file = os.path.join(youtube_dir, 'info.json')
-        if os.path.exists(info_file):
-            try:
-                info_data = load_json_file(info_file)
-                additional_data['info'] = info_data
-            except Exception as e:
-                print(f"Error loading info.json: {e}")
-
-        # Check for metadata.json
+        # Get metadata.json
         metadata_file = os.path.join(youtube_dir, 'metadata.json')
-        if os.path.exists(metadata_file):
-            try:
-                metadata = load_json_file(metadata_file)
-                additional_data['metadata'] = metadata
-            except Exception as e:
-                print(f"Error loading metadata.json: {e}")
+        folder_data['metadata'] = load_json_file(metadata_file, {})
 
-        # Check for video files
+        # Get info.json (look for any file ending with .info.json)
+        info_files = glob.glob(os.path.join(youtube_dir, '*.info.json'))
+        if info_files:
+            # Use the first info file found
+            folder_data['info'] = load_json_file(info_files[0], {})
+
+            # If there are multiple info files, include them all
+            if len(info_files) > 1:
+                folder_data['info_files'] = {}
+                for info_file in info_files:
+                    filename = os.path.basename(info_file)
+                    folder_data['info_files'][filename] = load_json_file(info_file, {})
+
+        # Get description files
+        description_files = glob.glob(os.path.join(youtube_dir, '*.description'))
+        if description_files:
+            # Use the first description file found
+            folder_data['description'] = load_text_file(description_files[0], "")
+
+            # If there are multiple description files, include them all
+            if len(description_files) > 1:
+                folder_data['description_files'] = {}
+                for desc_file in description_files:
+                    filename = os.path.basename(desc_file)
+                    folder_data['description_files'][filename] = load_text_file(desc_file, "")
+
+        # Get live chat files
+        live_chat_files = glob.glob(os.path.join(youtube_dir, '*.live_chat.json'))
+        if live_chat_files:
+            # Use the first live chat file found
+            folder_data['live_chat'] = load_json_file(live_chat_files[0], {})
+
+            # If there are multiple live chat files, include them all
+            if len(live_chat_files) > 1:
+                folder_data['live_chat_files'] = {}
+                for chat_file in live_chat_files:
+                    filename = os.path.basename(chat_file)
+                    folder_data['live_chat_files'][filename] = load_json_file(chat_file, {})
+
+        # Get subtitle files
+        subtitle_files = glob.glob(os.path.join(youtube_dir, '*.vtt')) + \
+                         glob.glob(os.path.join(youtube_dir, '*.srt'))
+        if subtitle_files:
+            folder_data['subtitles'] = {}
+            for sub_file in subtitle_files:
+                filename = os.path.basename(sub_file)
+                folder_data['subtitles'][filename] = load_text_file(sub_file, "")
+
+        # Get thumbnail files
+        thumbnail_files = glob.glob(os.path.join(youtube_dir, '*.jpg')) + \
+                          glob.glob(os.path.join(youtube_dir, '*.png')) + \
+                          glob.glob(os.path.join(youtube_dir, '*.webp'))
+        if thumbnail_files:
+            folder_data['thumbnails'] = [os.path.basename(f) for f in thumbnail_files]
+
+        # Get video files (but don't include the content, just the filenames)
         video_files = glob.glob(os.path.join(youtube_dir, '*.mp4')) + \
                      glob.glob(os.path.join(youtube_dir, '*.webm')) + \
                      glob.glob(os.path.join(youtube_dir, '*.mkv'))
-
         if video_files:
-            additional_data['video_files'] = [os.path.basename(f) for f in video_files]
+            folder_data['video_files'] = [os.path.basename(f) for f in video_files]
+
+        # Get any other files in the directory
+        all_files = os.listdir(youtube_dir)
+        known_extensions = ['.json', '.description', '.live_chat.json', '.vtt', '.srt',
+                           '.jpg', '.png', '.webp', '.mp4', '.webm', '.mkv']
+        other_files = [f for f in all_files if not any(f.endswith(ext) for ext in known_extensions)]
+        if other_files:
+            folder_data['other_files'] = other_files
 
     # Return the platform data
     return {
@@ -435,7 +489,7 @@ def get_youtube_platform(
         "url": platform.url,
         "downloaded": platform.downloaded,
         "downloaded_at": platform.downloaded_at,
-        "data": additional_data
+        "data": folder_data
     }
 
 @app.post("/videos/{video_id}/update-metadata", response_model=DownloadResponse, tags=["videos"])

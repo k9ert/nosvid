@@ -106,3 +106,33 @@ def create_safe_filename(title):
         Safe filename
     """
     return "".join([c if c.isalnum() or c in ' ._-' else '_' for c in title])
+
+def load_text_file(file_path, default=None):
+    """
+    Load text from file
+
+    Args:
+        file_path: Path to text file
+        default: Default value if file doesn't exist or is invalid
+
+    Returns:
+        File content as string or default value
+    """
+    if default is None:
+        default = ""
+
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except UnicodeDecodeError:
+            # Try with a different encoding if UTF-8 fails
+            try:
+                with open(file_path, 'r', encoding='latin-1') as f:
+                    return f.read()
+            except Exception:
+                return default
+        except Exception:
+            return default
+
+    return default

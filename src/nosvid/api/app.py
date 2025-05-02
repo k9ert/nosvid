@@ -2,6 +2,9 @@
 FastAPI application for nosvid
 """
 
+import os
+import glob
+
 from fastapi import FastAPI, Depends, HTTPException, Query
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
@@ -12,6 +15,7 @@ from ..services.video_service import VideoService, download_status
 from ..services.scheduler_service import SchedulerService
 from ..repo.video_repo import FileSystemVideoRepo
 from ..models.video import Video, Platform, NostrPost
+from ..utils.filesystem import get_video_dir, get_platform_dir, load_json_file
 
 # Import routers
 from .status import router as status_router
@@ -98,6 +102,16 @@ class UpdateMetadataRequest(BaseModel):
     nostr_posts: Optional[List[Dict[str, Any]]] = None
     npubs: Optional[Dict[str, List[str]]] = None
     synced_at: Optional[str] = None
+
+class PlatformResponse(BaseModel):
+    """Response model for platform-specific data"""
+    name: str
+    url: Optional[str] = None
+    downloaded: Optional[bool] = None
+    downloaded_at: Optional[str] = None
+    uploaded: Optional[bool] = None
+    uploaded_at: Optional[str] = None
+    data: Dict[str, Any] = {}
 
 class StatisticsResponse(BaseModel):
     """Response model for statistics"""
@@ -347,6 +361,82 @@ def get_download_status():
     Get the current download status
     """
     return download_status
+
+@app.get("/videos/{video_id}/platforms/youtube", response_model=PlatformResponse, tags=["videos"])
+def get_youtube_platform(
+    video_id: str,
+    channel_title: str = Depends(get_channel_title),
+    video_service: VideoService = Depends(get_video_service)
+):
+    """
+    Get YouTube-specific data for a video
+    """
+    # Get the video
+    result = video_service.get_video(video_id, channel_title)
+
+    if not result.success:
+        raise HTTPException(status_code=500, detail=result.error)
+
+    video = result.data
+    if not video:
+        raise HTTPException(status_code=404, detail=f"Video {video_id} not found")
+
+    # Check if the video has YouTube platform data
+    if 'youtube' not in video.platforms:
+        # If not, create a minimal platform response with just the URL
+        return {
+            "name": "youtube",
+            "url": f"https://www.youtube.com/watch?v={video_id}",
+            "downloaded": False,
+            "data": {}
+        }
+
+    # Get the platform data
+    platform = video.platforms['youtube']
+
+    # Get additional data from the filesystem
+    videos_dir = os.path.join(video_service.video_repository.base_dir, channel_title, "videos")
+    video_dir = get_video_dir(videos_dir, video_id)
+    youtube_dir = get_platform_dir(video_dir, 'youtube')
+
+    additional_data = {}
+
+    # Check if the youtube directory exists
+    if os.path.exists(youtube_dir):
+        # Check for info.json
+        info_file = os.path.join(youtube_dir, 'info.json')
+        if os.path.exists(info_file):
+            try:
+                info_data = load_json_file(info_file)
+                additional_data['info'] = info_data
+            except Exception as e:
+                print(f"Error loading info.json: {e}")
+
+        # Check for metadata.json
+        metadata_file = os.path.join(youtube_dir, 'metadata.json')
+        if os.path.exists(metadata_file):
+            try:
+                metadata = load_json_file(metadata_file)
+                additional_data['metadata'] = metadata
+            except Exception as e:
+                print(f"Error loading metadata.json: {e}")
+
+        # Check for video files
+        video_files = glob.glob(os.path.join(youtube_dir, '*.mp4')) + \
+                     glob.glob(os.path.join(youtube_dir, '*.webm')) + \
+                     glob.glob(os.path.join(youtube_dir, '*.mkv'))
+
+        if video_files:
+            additional_data['video_files'] = [os.path.basename(f) for f in video_files]
+
+    # Return the platform data
+    return {
+        "name": platform.name,
+        "url": platform.url,
+        "downloaded": platform.downloaded,
+        "downloaded_at": platform.downloaded_at,
+        "data": additional_data
+    }
 
 @app.post("/videos/{video_id}/update-metadata", response_model=DownloadResponse, tags=["videos"])
 def update_video_metadata(

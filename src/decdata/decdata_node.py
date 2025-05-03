@@ -307,6 +307,19 @@ class DecDataNode(Node):
         try:
             self.send_to_node(node, json.dumps(catalog_message))
             print(f"Sent catalog to node {node.id} ({len(self.video_catalog)} videos)")
+
+            # If we already have the other node's catalog, calculate which videos we have that they don't have
+            if node.id in self.peers_catalog:
+                our_videos = set(self.video_catalog.keys())
+                their_videos = set(self.peers_catalog[node.id])
+                videos_we_have_they_dont = our_videos - their_videos
+
+                if videos_we_have_they_dont:
+                    print(f"We have {len(videos_we_have_they_dont)} videos that node {node.id} doesn't have:")
+                    for video_id in sorted(list(videos_we_have_they_dont)):
+                        print(f"  - {video_id}")
+                else:
+                    print(f"We don't have any videos that node {node.id} doesn't have")
         except Exception as e:
             print(f"Error sending catalog to node {node.id}: {e}")
 
@@ -323,6 +336,23 @@ class DecDataNode(Node):
 
         self.peers_catalog[node_id] = videos
         print(f"Received catalog from node {node_id} ({len(videos)} videos)")
+
+        # Calculate which videos the other node has that we don't have
+        our_videos = set(self.video_catalog.keys())
+        their_videos = set(videos)
+        videos_they_have_we_dont = their_videos - our_videos
+
+        if videos_they_have_we_dont:
+            print(f"Node {node_id} has {len(videos_they_have_we_dont)} videos that we don't have:")
+
+            # For each video they have that we don't, request video_info
+            for video_id in sorted(list(videos_they_have_we_dont)):
+                print(f"  - {video_id}")
+
+                # Request video info for this video
+                self.request_video_info(node, video_id)
+        else:
+            print(f"Node {node_id} doesn't have any videos that we don't have")
 
     def handle_search_message(self, node, message):
         """
@@ -495,41 +525,94 @@ class DecDataNode(Node):
         video_id = message.get('video_id')
         request_id = message.get('request_id')
 
-        if video_id not in self.video_catalog:
-            # Try to get the video from NosVid API
-            video_info = self.nosvid_api.get_video(video_id)
+        # Get comprehensive video information from NosVid API
+        video_info = None
 
-            if not video_info:
-                error_message = {
-                    'type': 'video_info_response',
-                    'request_id': request_id,
-                    'success': False,
-                    'error': 'Video not found'
-                }
-                self.send_to_node(node, json.dumps(error_message))
-                return
+        # First try to get from NosVid API for most up-to-date and complete information
+        api_video_info = self.nosvid_api.get_video(video_id)
 
-            # Send video info
-            response_message = {
+        if api_video_info:
+            video_info = api_video_info
+            print(f"Found video {video_id} in NosVid API")
+        elif video_id in self.video_catalog:
+            # If not in API, use local catalog
+            video_info = self.video_catalog[video_id]
+            print(f"Found video {video_id} in local catalog")
+
+        if not video_info:
+            error_message = {
                 'type': 'video_info_response',
                 'request_id': request_id,
-                'success': True,
-                'video_info': video_info
+                'success': False,
+                'error': 'Video not found'
             }
+            self.send_to_node(node, json.dumps(error_message))
+            return
 
-            self.send_to_node(node, json.dumps(response_message))
-            print(f"Sent video info for {video_id} to node {node.id}")
-        else:
-            # Send video info from local catalog
-            response_message = {
-                'type': 'video_info_response',
-                'request_id': request_id,
-                'success': True,
-                'video_info': self.video_catalog[video_id]
-            }
+        # Enhance video info with additional metadata if available
+        enhanced_video_info = {
+            'video_id': video_id,
+            'title': video_info.get('title', ''),
+            'published_at': video_info.get('published_at', ''),
+            'duration': video_info.get('duration', 0),
+            'platforms': video_info.get('platforms', {}),
+            'nostr_posts': video_info.get('nostr_posts', []),
+            'npubs': video_info.get('npubs', {}),
+            'synced_at': video_info.get('synced_at', ''),
+            'has_file': False
+        }
 
-            self.send_to_node(node, json.dumps(response_message))
-            print(f"Sent video info for {video_id} to node {node.id}")
+        # Check if we have the file locally
+        if video_id in self.video_catalog:
+            platforms = self.video_catalog[video_id].get('platforms', {})
+            youtube = platforms.get('youtube', {})
+            if youtube.get('downloaded', False):
+                enhanced_video_info['has_file'] = True
+
+                # Get file size if available (without loading the entire file)
+                try:
+                    file_info = self.nosvid_api.get_video_file_content(video_id)
+                    if file_info:
+                        enhanced_video_info['file_size'] = file_info.get('file_size', 0)
+                        enhanced_video_info['file_hash'] = file_info.get('file_hash', '')
+                except Exception as e:
+                    print(f"Error getting file info for {video_id}: {e}")
+
+        # Send enhanced video info
+        response_message = {
+            'type': 'video_info_response',
+            'request_id': request_id,
+            'success': True,
+            'video_info': enhanced_video_info
+        }
+
+        self.send_to_node(node, json.dumps(response_message))
+        print(f"Sent enhanced video info for {video_id} to node {node.id}")
+
+    def request_video_info(self, node, video_id):
+        """
+        Request video information from another node.
+
+        Args:
+            node: The node to request from
+            video_id: ID of the video to request information for
+        """
+        import hashlib
+        import time
+
+        # Create a unique request ID
+        request_id = hashlib.md5(f"{time.time()}-{video_id}".encode()).hexdigest()
+
+        # Create the request message
+        request_message = {
+            'type': 'video_info_request',
+            'request_id': request_id,
+            'video_id': video_id
+        }
+
+        # Send the request
+        self.send_to_node(node, json.dumps(request_message))
+        print(f"Sent video_info request for {video_id} to node {node.id}")
 
     def handle_video_info_response(self, node, message):
         """
@@ -551,11 +634,146 @@ class DecDataNode(Node):
         video_id = video_info.get('video_id')
 
         if video_id:
-            print(f"Received video info for {video_id} from node {node.id}")
-            # Process video info (implementation depends on UI)
-            print(f"Video title: {video_info.get('title')}")
-            print(f"Published at: {video_info.get('published_at')}")
-            print(f"Duration: {video_info.get('duration')} seconds")
+            print(f"\nReceived video info for {video_id} from node {node.id}")
+            print("-" * 60)
+
+            # Basic information
+            title = video_info.get('title', '')
+            published_at = video_info.get('published_at', '')
+            duration = video_info.get('duration', 0)
+
+            print(f"Title: {title}")
+            print(f"Published at: {published_at}")
+            print(f"Duration: {duration} seconds")
+
+            # Platform information
+            platforms = video_info.get('platforms', {})
+            for platform_name, platform_data in platforms.items():
+                print(f"\n{platform_name.capitalize()} information:")
+                for key, value in platform_data.items():
+                    print(f"  - {key}: {value}")
+
+            # File information
+            has_file = video_info.get('has_file', False)
+            if has_file:
+                print("\nFile information:")
+                print(f"  - Available: Yes")
+                if 'file_size' in video_info:
+                    print(f"  - Size: {video_info.get('file_size')} bytes")
+                if 'file_hash' in video_info:
+                    print(f"  - Hash: {video_info.get('file_hash')}")
+            else:
+                print("\nFile information:")
+                print(f"  - Available: No")
+
+            # Nostr information
+            nostr_posts = video_info.get('nostr_posts', [])
+            if nostr_posts:
+                print("\nNostr posts:")
+                for post in nostr_posts:
+                    print(f"  - {post}")
+
+            # NPubs information
+            npubs = video_info.get('npubs', {})
+            if npubs:
+                print("\nNPubs:")
+                for source, npub_list in npubs.items():
+                    print(f"  - {source}: {', '.join(npub_list)}")
+
+            print("-" * 60)
+
+            # Store the video info in our catalog if we don't have it
+            if video_id not in self.video_catalog:
+                # Create a simplified version for our catalog
+                catalog_entry = {
+                    'video_id': video_id,
+                    'title': title,
+                    'published_at': published_at,
+                    'duration': duration,
+                    'platforms': platforms,
+                    'from_peer': node.id
+                }
+                self.video_catalog[video_id] = catalog_entry
+                print(f"Added video {video_id} to local catalog (from peer {node.id})")
+
+                # Create the video in the local NosVid API
+                try:
+                    # First, update the basic metadata
+                    metadata = {
+                        'title': title,
+                        'published_at': published_at,
+                        'duration': duration,
+                        'npubs': npubs,
+                        'nostr_posts': nostr_posts,
+                        'synced_at': video_info.get('synced_at', '')
+                    }
+
+                    metadata_success = self.nosvid_api.update_metadata(video_id, metadata)
+                    if metadata_success:
+                        print(f"Updated metadata for video {video_id} in local NosVid API")
+
+                    # Then, create platform-specific data
+                    youtube_data = platforms.get('youtube', {})
+                    if youtube_data:
+                        youtube_url = youtube_data.get('url', f"https://www.youtube.com/watch?v={video_id}")
+                        youtube_downloaded = youtube_data.get('downloaded', False)
+                        youtube_downloaded_at = youtube_data.get('downloaded_at')
+
+                        # Create empty data structure for YouTube platform
+                        platform_data = {
+                            'metadata': {},
+                            'info': {},
+                            'description': '',
+                            'live_chat': None,
+                            'subtitles': {},
+                            'description_files': {},
+                            'info_files': {},
+                            'live_chat_files': {},
+                            'thumbnails': [],
+                            'video_files': [],
+                            'other_files': []
+                        }
+
+                        # If the video has additional data, include it
+                        if 'data' in youtube_data:
+                            platform_data = youtube_data.get('data', platform_data)
+
+                        youtube_success = self.nosvid_api.create_youtube_platform(
+                            video_id,
+                            youtube_url,
+                            platform_data,
+                            youtube_downloaded,
+                            youtube_downloaded_at
+                        )
+
+                        if youtube_success:
+                            print(f"Created YouTube platform data for video {video_id} in local NosVid API")
+
+                    # Create nostrmedia data if available
+                    nostrmedia_data = platforms.get('nostrmedia', {})
+                    if nostrmedia_data and nostrmedia_data.get('url'):
+                        nostrmedia_url = nostrmedia_data.get('url')
+                        nostrmedia_hash = None  # We don't have this information
+                        nostrmedia_uploaded_at = nostrmedia_data.get('uploaded_at')
+
+                        nostrmedia_success = self.nosvid_api.set_nostrmedia_url(
+                            video_id,
+                            nostrmedia_url,
+                            nostrmedia_hash,
+                            nostrmedia_uploaded_at
+                        )
+
+                        if nostrmedia_success:
+                            print(f"Set nostrmedia URL for video {video_id} in local NosVid API")
+
+                    # If the other node has the file and we don't, we could initiate a download
+                    if has_file and not youtube_downloaded:
+                        print(f"Node {node.id} has the file for video {video_id}. Consider downloading it.")
+                        # We could automatically initiate a download here if desired
+                        # self.download_video(video_id, node.id)
+
+                except Exception as e:
+                    print(f"Error creating video {video_id} in local NosVid API: {e}")
 
     def load_local_catalog(self):
         """

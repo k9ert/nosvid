@@ -158,6 +158,39 @@ class NosVidAPIClient:
             print(f"Error setting nostrmedia URL for video {video_id}: {e}")
             return False
 
+    def create_youtube_platform(self, video_id: str, url: str, data: Dict[str, Any],
+                               downloaded: bool = True, downloaded_at: str = None) -> bool:
+        """
+        Create YouTube platform data for a video.
+
+        Args:
+            video_id: ID of the video
+            url: YouTube URL for the video
+            data: Dictionary containing YouTube platform data
+            downloaded: Whether the video has been downloaded
+            downloaded_at: When the video was downloaded (ISO format)
+
+        Returns:
+            True if the request was successful, False otherwise
+        """
+        try:
+            platform_data = {
+                'url': url,
+                'downloaded': downloaded,
+                'downloaded_at': downloaded_at,
+                'data': data
+            }
+
+            response = requests.post(
+                f"{self.api_url}/videos/{video_id}/platforms/youtube",
+                json=platform_data
+            )
+            response.raise_for_status()
+            return response.json().get('success', False)
+        except requests.exceptions.RequestException as e:
+            print(f"Error creating YouTube platform data for video {video_id}: {e}")
+            return False
+
     def update_metadata(self, video_id: str, metadata: Dict[str, Any]) -> bool:
         """
         Update metadata for a video.

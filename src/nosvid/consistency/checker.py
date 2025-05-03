@@ -373,7 +373,11 @@ class ConsistencyChecker:
         issues = []
 
         # Find all channel_videos JSON files
-        metadata_dir = self.dirs['metadata_dir']
+        metadata_dir = self.dirs.get('metadata_dir')
+        if not metadata_dir:
+            self.logger.error("Metadata directory not found in directory structure")
+            return issues
+
         channel_videos_files = [f for f in os.listdir(metadata_dir)
                                if f.startswith('channel_videos_') and f.endswith('.json')]
 

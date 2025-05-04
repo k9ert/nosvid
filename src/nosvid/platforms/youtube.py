@@ -6,7 +6,33 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from ..utils.config import load_config
 from ..utils.filesystem import get_platform_dir, load_json_file, save_json_file
+
+
+def is_platform_activated() -> bool:
+    """
+    Check if the YouTube platform is activated in the config
+
+    Returns:
+        True if the platform is activated, False otherwise
+    """
+    config = load_config()
+    return config.get("youtube", {}).get("activated", False)
+
+
+def check_platform_activated() -> None:
+    """
+    Check if the YouTube platform is activated and raise an exception if not
+
+    Raises:
+        ValueError: If the platform is not activated
+    """
+    if not is_platform_activated():
+        raise ValueError(
+            "YouTube platform is not activated. "
+            "Please activate it in your config.yaml file by setting youtube.activated = true"
+        )
 
 
 def get_youtube_metadata(video_dir: str) -> Dict[str, Any]:

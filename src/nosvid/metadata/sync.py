@@ -63,6 +63,14 @@ def fetch_video_metadata(video, videos_dir):
     Returns:
         Dictionary with result information
     """
+    # Check if YouTube platform is activated
+    from ..platforms.youtube import check_platform_activated
+
+    # This function makes API calls to YouTube, so we need to check if the platform is activated
+    check_platform_activated()
+
+    # Log that we're making a YouTube API call
+    print(f"Making YouTube API call to fetch metadata for video {video['video_id']}")
     video_id = video["video_id"]
     video_url = video["url"]
     title = video["title"]
@@ -197,10 +205,19 @@ def sync_metadata(
         max_videos: Maximum number of videos to sync (None for all)
         delay: Delay between operations in seconds
         force_refresh: Force refresh from API even if cache is fresh
+        specific_video_id: Specific video ID to sync (None for all videos)
 
     Returns:
         Dictionary with sync results
     """
+    # Check if YouTube platform is activated
+    from ..platforms.youtube import check_platform_activated
+
+    # This function makes API calls to YouTube, so we need to check if the platform is activated
+    check_platform_activated()
+
+    # Log that we're making a YouTube API call
+    print(f"Making YouTube API call to sync metadata for channel {channel_id}")
     # Get channel info for saving metadata
     channel_info = {
         "title": channel_title,

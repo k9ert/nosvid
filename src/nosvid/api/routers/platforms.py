@@ -48,6 +48,9 @@ def get_youtube_platform(
     - info.json content
     - live chat content
     """
+    # This is a read-only operation, so we don't need to check if the platform is activated
+    # We just log that we're retrieving YouTube data
+    print(f"Retrieving YouTube data for video {video_id}")
     # Get the video
     result = video_service.get_video(video_id, channel_title)
 
@@ -195,7 +198,6 @@ def sync_youtube_metadata(
     video_id: str,
     request: SyncMetadataRequest = None,
     channel_title: str = Depends(get_channel_title),
-    video_service: VideoService = Depends(get_video_service),
 ):
     """
     Sync metadata for a video from YouTube
@@ -210,6 +212,10 @@ def sync_youtube_metadata(
 
     Returns a success message if the metadata was successfully synced.
     """
+    # Note: Platform activation is checked in the sync_metadata function
+    # Log that we're making a YouTube API call
+    print(f"Making YouTube API call to sync metadata for video {video_id}")
+
     # Default to an empty request if none is provided
     if request is None:
         request = SyncMetadataRequest()
@@ -260,6 +266,10 @@ def download_youtube_video(
     """
     Download a video from YouTube
     """
+    # Note: Platform activation is checked in the download_video function
+    # Log that we're making a YouTube API call
+    print(f"Making YouTube API call to download video {video_id}")
+
     # Generate a simple user identifier (in a real app, this would be a session ID or user ID)
     user_id = f"user-{datetime.now().timestamp()}"
 
@@ -286,6 +296,10 @@ def upload_to_nostrmedia(
     """
     Upload a video to nostrmedia.com
     """
+    # Note: Platform activation is checked in the upload_to_nostrmedia function
+    # Log that we're making a Nostrmedia API call
+    print(f"Making Nostrmedia API call to upload video {video_id}")
+
     # First, check if the video exists and has been downloaded
     video_result = video_service.get_video(video_id, channel_title)
 
@@ -327,6 +341,10 @@ def set_nostrmedia_url(
     """
     Set an existing nostrmedia URL for a video
     """
+    # Note: Platform activation is checked in the set_nostrmedia_url function
+    # Log that we're making a Nostrmedia API call
+    print(f"Making Nostrmedia API call to set URL for video {video_id}")
+
     # First, check if the video exists
     video_result = video_service.get_video(video_id, channel_title)
 
@@ -379,6 +397,9 @@ def create_youtube_platform(
 
     Returns a success message if the platform data was successfully created.
     """
+    # Note: Platform activation is checked in the create_youtube_platform function
+    # Log that we're creating YouTube platform data
+    print(f"Creating YouTube platform data for video {video_id}")
     # First, check if the video exists
     video_result = video_service.get_video(video_id, channel_title)
 

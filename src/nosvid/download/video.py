@@ -28,6 +28,14 @@ def download_video(video_id, videos_dir, quality="best"):
     Returns:
         Boolean indicating success
     """
+    # Check if YouTube platform is activated
+    from ..platforms.youtube import check_platform_activated
+
+    # This function makes API calls to YouTube, so we need to check if the platform is activated
+    check_platform_activated()
+
+    # Log that we're making a YouTube API call
+    print(f"Making YouTube API call to download video {video_id}")
     # Find the video directory
     video_dir = get_video_dir(videos_dir, video_id)
 
@@ -133,6 +141,8 @@ def download_all_pending(videos_dir, quality="best", delay=5):
     Returns:
         Dictionary with download results
     """
+    # Note: We don't need to check platform activation here because
+    # download_video() will check it for each video
     import time
 
     from ..metadata.list import list_videos

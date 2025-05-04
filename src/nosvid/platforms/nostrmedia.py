@@ -7,7 +7,33 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from ..nostrmedia.upload import upload_to_nostrmedia
+from ..utils.config import load_config
 from ..utils.filesystem import get_platform_dir, load_json_file, save_json_file
+
+
+def is_platform_activated() -> bool:
+    """
+    Check if the Nostrmedia platform is activated in the config
+
+    Returns:
+        True if the platform is activated, False otherwise
+    """
+    config = load_config()
+    return config.get("nostrmedia", {}).get("activated", False)
+
+
+def check_platform_activated() -> None:
+    """
+    Check if the Nostrmedia platform is activated and raise an exception if not
+
+    Raises:
+        ValueError: If the platform is not activated
+    """
+    if not is_platform_activated():
+        raise ValueError(
+            "Nostrmedia platform is not activated. "
+            "Please activate it in your config.yaml file by setting nostrmedia.activated = true"
+        )
 
 
 def get_nostrmedia_metadata(video_dir: str) -> Dict[str, Any]:
@@ -61,6 +87,12 @@ def upload_video_to_nostrmedia(
     Returns:
         Dictionary with upload result
     """
+    # Check if Nostrmedia platform is activated
+    check_platform_activated()
+
+    # Log that we're making a Nostrmedia API call
+    print(f"Making Nostrmedia API call to upload video {video_file}")
+
     # Upload the video to Nostrmedia
     result = upload_to_nostrmedia(video_file, private_key, debug=debug)
 

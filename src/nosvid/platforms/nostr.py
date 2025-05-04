@@ -7,7 +7,33 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ..nostr.upload import upload_to_nostr
+from ..utils.config import load_config
 from ..utils.filesystem import get_platform_dir, load_json_file, save_json_file
+
+
+def is_platform_activated() -> bool:
+    """
+    Check if the Nostr platform is activated in the config
+
+    Returns:
+        True if the platform is activated, False otherwise
+    """
+    config = load_config()
+    return config.get("nostr", {}).get("activated", False)
+
+
+def check_platform_activated() -> None:
+    """
+    Check if the Nostr platform is activated and raise an exception if not
+
+    Raises:
+        ValueError: If the platform is not activated
+    """
+    if not is_platform_activated():
+        raise ValueError(
+            "Nostr platform is not activated. "
+            "Please activate it in your config.yaml file by setting nostr.activated = true"
+        )
 
 
 def get_nostr_metadata(video_dir: str) -> Dict[str, Any]:
@@ -158,6 +184,12 @@ def post_video_to_nostr(
     Returns:
         Dictionary with post result
     """
+    # Check if Nostr platform is activated
+    check_platform_activated()
+
+    # Log that we're making a Nostr API call
+    print(f"Making Nostr API call to post video {video_id}")
+
     # Post the video to Nostr
     result = upload_to_nostr(
         video_id=video_id,

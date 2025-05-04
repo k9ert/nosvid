@@ -6,12 +6,18 @@ from fastapi import Depends
 
 from ..repo.video_repo import FileSystemVideoRepo
 from ..services.config_service import ConfigService
+from ..services.platform_service import PlatformService
 from ..services.video_service import VideoService
 
 
 def get_config_service():
     """Get the configuration service"""
     return ConfigService()
+
+
+def get_platform_service():
+    """Get the platform service"""
+    return PlatformService()
 
 
 def get_video_repository(config_service: ConfigService = Depends(get_config_service)):

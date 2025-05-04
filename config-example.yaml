@@ -2,17 +2,35 @@
 
 # YouTube API Configuration
 youtube:
+  # Set to true to activate YouTube functionality
+  activated: false
   api_key: "YOUR_YOUTUBE_API_KEY_HERE"
+  # Path to cookies file for authenticated requests
+  cookies_file: "~/youtube_cookies.txt"
+
+# Nostrmedia Configuration
+nostrmedia:
+  # Set to true to activate Nostrmedia functionality
+  activated: false
 
 # Nostr Configuration
 nostr:
+  # Set to true to activate Nostr functionality
+  activated: false
   # Private key (hex or nsec format)
   nsec: "YOUR_NSEC_HERE"
   # Public key (hex or npub format)
   npub: "YOUR_NPUB_HERE"
+  # Relays to use for publishing (optional, defaults will be used if not specified)
+  # relays:
+  #   - "wss://relay.damus.io"
+  #   - "wss://nos.lol"
+  #   - "wss://nostr.wine"
 
 # HeyGen API Configuration
 heygen:
+  # Set to true to activate HeyGen functionality
+  activated: false
   api_key: "YOUR_HEYGEN_API_KEY_HERE"
 
 # Default Settings
@@ -20,3 +38,4 @@ defaults:
   output_dir: "~/Downloads/nosvid"
   video_quality: "best"
   download_delay: 5
+  repository_dir: "./repository"

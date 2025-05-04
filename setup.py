@@ -30,7 +30,13 @@ INSTALL_REQUIRES = [
 
 # Optional dependencies (only for development)
 EXTRAS_REQUIRE = {
-    "dev": ["pytest", "black", "flake8"],
+    "dev": [
+        "pytest>=7.0.0",
+        "pytest-cov>=4.0.0",
+        "pytest-mock>=3.10.0",
+        "black",
+        "flake8",
+    ],
 }
 
 setup(

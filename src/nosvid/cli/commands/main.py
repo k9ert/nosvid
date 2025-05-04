@@ -13,6 +13,7 @@ from .nostr import nostr_command, register_nostr_parser
 from .consistency import consistency_check_command, register_consistency_check_parser
 from .serve import serve_command, add_serve_command
 from .heygen import heygen_command, heygen_status_command, register_heygen_parser
+from .test import test_command, register_test_parser
 
 def main():
     """
@@ -53,6 +54,7 @@ def main():
     register_consistency_check_parser(subparsers)
     add_serve_command(subparsers)
     register_heygen_parser(subparsers)
+    register_test_parser(subparsers)
 
     # Parse arguments
     args = parser.parse_args()
@@ -76,6 +78,8 @@ def main():
         return heygen_command(args)
     elif args.command == 'heygen-status':
         return heygen_status_command(args)
+    elif args.command == 'test':
+        return test_command(args)
     else:
         parser.print_help()
         return 0

@@ -32,7 +32,8 @@ class BaseNode(Node):
 
     def __init__(self, host: str, port: int,
                  nosvid_api_url: str = "http://localhost:2121/api",
-                 id: str = None, max_connections: int = 0):
+                 id: str = None, max_connections: int = 0,
+                 node_prefix_provider=None):
         """
         Initialize the Base Node.
 
@@ -42,9 +43,13 @@ class BaseNode(Node):
             nosvid_api_url: URL of the NosVid API
             id: Node ID (optional, will be generated if not provided)
             max_connections: Maximum number of connections (0 for unlimited)
+            node_prefix_provider: Function that returns the node prefix (for testing)
         """
-        # Get the node prefix from config
-        prefix = get_decdata_node_prefix()
+        # Get the node prefix from config or from the provided function
+        if node_prefix_provider:
+            prefix = node_prefix_provider()
+        else:
+            prefix = get_decdata_node_prefix()
 
         # Initialize the parent class with the original ID
         super(BaseNode, self).__init__(host, port, id, None, max_connections)
@@ -52,14 +57,19 @@ class BaseNode(Node):
         # Store the original ID
         self.original_id = self.id
 
-        # Format the ID with prefix and limit to 30 characters
+        # Format the ID with prefix and ensure it's exactly 30 characters
         if self.id:
-            # Take only the first 15 characters of the original ID
-            short_id = self.original_id[:15]
             # Create the formatted ID with prefix
-            self.id = f"{prefix}{short_id}"
-            # Ensure the total length is at most 30 characters
-            self.id = self.id[:30]
+            formatted_id = f"{prefix}{self.original_id}"
+
+            # If the formatted ID is longer than 30 characters, truncate it
+            if len(formatted_id) > 30:
+                self.id = formatted_id[:30]
+            # If the formatted ID is shorter than 30 characters, pad it with zeros
+            elif len(formatted_id) < 30:
+                self.id = formatted_id.ljust(30, '0')
+            else:
+                self.id = formatted_id
 
         # NosVid API client
         self.nosvid_api = NosVidAPIClient(nosvid_api_url)

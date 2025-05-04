@@ -34,7 +34,8 @@ class DecDataNode(BaseNode):
     def __init__(self, host: str, port: int,
                  nosvid_api_url: str = "http://localhost:2121/api",
                  id: str = None, max_connections: int = 0,
-                 sync_interval: int = 300):
+                 sync_interval: int = 300,
+                 node_prefix_provider=None):
         """
         Initialize the DecData node.
 
@@ -45,8 +46,12 @@ class DecDataNode(BaseNode):
             id: Node ID (optional, will be generated if not provided)
             max_connections: Maximum number of connections (0 for unlimited)
             sync_interval: Interval in seconds for syncing with NosVid API
+            node_prefix_provider: Function that returns the node prefix (for testing)
         """
-        super(DecDataNode, self).__init__(host, port, nosvid_api_url, id, max_connections)
+        super(DecDataNode, self).__init__(
+            host, port, nosvid_api_url, id, max_connections,
+            node_prefix_provider=node_prefix_provider
+        )
 
         # Initialize components
         self.catalog_manager = CatalogManager(self, sync_interval)

@@ -2,12 +2,17 @@
 YouTube platform functionality for nosvid
 """
 
+import logging
 import os
+import traceback
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ..utils.config import load_config
 from ..utils.filesystem import get_platform_dir, load_json_file, save_json_file
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 def is_platform_activated() -> bool:
@@ -29,10 +34,13 @@ def check_platform_activated() -> None:
         ValueError: If the platform is not activated
     """
     if not is_platform_activated():
-        raise ValueError(
+        error_msg = (
             "YouTube platform is not activated. "
             "Please activate it in your config.yaml file by setting youtube.activated = true"
         )
+        logger.error(f"Platform activation check failed: {error_msg}")
+        logger.error(f"Stack trace: {traceback.format_stack()}")
+        raise ValueError(error_msg)
 
 
 def get_youtube_metadata(video_dir: str) -> Dict[str, Any]:

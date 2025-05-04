@@ -4,6 +4,7 @@ Web application for nosvid
 
 import logging
 import os
+import sys
 
 from fastapi import FastAPI, Request
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -14,7 +15,16 @@ from fastapi.templating import Jinja2Templates
 from ..api.app import app as api_app
 from ..services.scheduler_service import SchedulerService
 
-# Set up logging
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+    ],
+)
+
+# Set up logger for this module
 logger = logging.getLogger(__name__)
 
 # Create FastAPI application

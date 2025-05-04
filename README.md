@@ -1,7 +1,6 @@
 # NosVid & DecData: Video Collection and Decentralized Distribution
 
 [![CI](https://github.com/k9ert/nosvid/actions/workflows/ci.yml/badge.svg)](https://github.com/k9ert/nosvid/actions/workflows/ci.yml)
-[![Python Tests](https://github.com/k9ert/nosvid/actions/workflows/pytest.yml/badge.svg)](https://github.com/k9ert/nosvid/actions/workflows/pytest.yml)
 [![codecov](https://codecov.io/gh/k9ert/nosvid/branch/main/graph/badge.svg)](https://codecov.io/gh/k9ert/nosvid)
 
 This repository contains two integrated projects:

@@ -8,9 +8,17 @@ extending the Node class from p2pnetwork.
 
 import json
 import threading
+import sys
 from typing import Dict, List, Any, Callable
 from p2pnetwork.node import Node
+from pathlib import Path
 
+# Add the parent directory to sys.path to allow importing nosvid modules
+parent_dir = str(Path(__file__).parent.parent)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+from nosvid.utils.config import get_decdata_node_prefix
 from .nosvid_api_client import NosVidAPIClient
 
 
@@ -35,7 +43,23 @@ class BaseNode(Node):
             id: Node ID (optional, will be generated if not provided)
             max_connections: Maximum number of connections (0 for unlimited)
         """
+        # Get the node prefix from config
+        prefix = get_decdata_node_prefix()
+
+        # Initialize the parent class with the original ID
         super(BaseNode, self).__init__(host, port, id, None, max_connections)
+
+        # Store the original ID
+        self.original_id = self.id
+
+        # Format the ID with prefix and limit to 30 characters
+        if self.id:
+            # Take only the first 15 characters of the original ID
+            short_id = self.original_id[:15]
+            # Create the formatted ID with prefix
+            self.id = f"{prefix}{short_id}"
+            # Ensure the total length is at most 30 characters
+            self.id = self.id[:30]
 
         # NosVid API client
         self.nosvid_api = NosVidAPIClient(nosvid_api_url)
@@ -52,7 +76,7 @@ class BaseNode(Node):
         # Message handlers
         self.message_handlers: List[Callable] = []
 
-        print(f"BaseNode: Started on {host}:{port}")
+        print(f"BaseNode: Started on {host}:{port} with ID {self.id}")
 
     def outbound_node_connected(self, node):
         """

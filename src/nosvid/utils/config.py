@@ -202,3 +202,15 @@ def get_repository_dir():
     if 'defaults' in config and 'repository_dir' in config['defaults']:
         return config['defaults']['repository_dir']
     return './repository'
+
+def get_decdata_node_prefix():
+    """
+    Get the DecData node ID prefix from config
+
+    Returns:
+        Node ID prefix or 'node-' if not configured
+    """
+    config = load_config()
+    if 'decdata' in config and 'node_prefix' in config['decdata']:
+        return config['decdata']['node_prefix']
+    return 'node-'

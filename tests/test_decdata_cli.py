@@ -25,12 +25,24 @@ class TestDecDataCLI(unittest.TestCase):
         self.assertIn("def serve_node(args):", content)
         self.assertNotIn("def start_node(args):", content)
 
-        # Check that the command is 'serve'
-        self.assertIn("serve_parser = subparsers.add_parser('serve'", content)
-        self.assertNotIn("start_parser = subparsers.add_parser('start'", content)
+        # Check that the command is 'serve' (with either single or double quotes)
+        self.assertTrue(
+            "serve_parser = subparsers.add_parser('serve'" in content
+            or 'serve_parser = subparsers.add_parser("serve"' in content,
+            "Could not find serve command parser",
+        )
+        self.assertFalse(
+            "start_parser = subparsers.add_parser('start'" in content
+            or 'start_parser = subparsers.add_parser("start"' in content,
+            "Found deprecated start command parser",
+        )
 
-        # Check that the function is called correctly
-        self.assertIn("if args.command == 'serve':", content)
+        # Check that the function is called correctly (with either single or double quotes)
+        self.assertTrue(
+            "if args.command == 'serve':" in content
+            or 'if args.command == "serve":' in content,
+            "Could not find serve command condition",
+        )
         self.assertIn("serve_node(args)", content)
 
 

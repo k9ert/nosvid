@@ -44,7 +44,7 @@ def mock_requests_get(*args, **kwargs):
     Mock for requests.get.
     """
     url = args[0]
-    
+
     if "/videos/" in url and "/file" not in url:
         # Get video endpoint
         video_id = url.split("/")[-1]
@@ -67,7 +67,7 @@ def mock_requests_get(*args, **kwargs):
             "npubs": {},
             "synced_at": "2023-01-01T00:00:00Z"
         })
-    
+
     return MockResponse({"error": "Not found"}, 404)
 
 
@@ -76,16 +76,16 @@ def mock_requests_post(*args, **kwargs):
     Mock for requests.post.
     """
     url = args[0]
-    
+
     if "/update-metadata" in url:
         return MockResponse({"success": True, "message": "Metadata updated"})
-    
+
     if "/platforms/youtube" in url and "/download" not in url:
         return MockResponse({"success": True, "message": "YouTube platform created"})
-    
+
     if "/platforms/nostrmedia" in url and "/upload" not in url:
         return MockResponse({"success": True, "message": "Nostrmedia URL set"})
-    
+
     return MockResponse({"success": False, "message": "Unknown endpoint"}, 404)
 
 
@@ -160,22 +160,22 @@ def main(mock_post, mock_get):
     # Create mock videos for node 1
     node1_videos = {
         "video1": create_mock_video(
-            "video1", 
-            "Video 1", 
-            "2023-01-01T00:00:00Z", 
+            "video1",
+            "Video 1",
+            "2023-01-01T00:00:00Z",
             downloaded=True,
             nostr_posts=["note1abc123", "note2def456"],
             npubs={"description": ["npub1abc123"], "chat": ["npub2def456", "npub3ghi789"]}
         ),
         "video2": create_mock_video(
-            "video2", 
-            "Video 2", 
+            "video2",
+            "Video 2",
             "2023-01-02T00:00:00Z",
             downloaded=False
         ),
         "common1": create_mock_video(
-            "common1", 
-            "Common Video 1", 
+            "common1",
+            "Common Video 1",
             "2023-01-04T00:00:00Z",
             downloaded=True
         ),
@@ -184,20 +184,20 @@ def main(mock_post, mock_get):
     # Create mock videos for node 2
     node2_videos = {
         "video3": create_mock_video(
-            "video3", 
-            "Video 3", 
+            "video3",
+            "Video 3",
             "2023-01-06T00:00:00Z",
             downloaded=True
         ),
         "video4": create_mock_video(
-            "video4", 
-            "Video 4", 
+            "video4",
+            "Video 4",
             "2023-01-07T00:00:00Z",
             downloaded=False
         ),
         "common1": create_mock_video(
-            "common1", 
-            "Common Video 1", 
+            "common1",
+            "Common Video 1",
             "2023-01-04T00:00:00Z",
             downloaded=False
         ),
@@ -228,46 +228,53 @@ def main(mock_post, mock_get):
                 "platforms": video.get("platforms", {})
             }
 
-    # Create a mock method for handling video_info_request
-    original_handle_video_info_request = node2.handle_video_info_request
-    
-    def mock_handle_video_info_request(node, message):
-        video_id = message.get('video_id')
-        request_id = message.get('request_id')
-        
-        # If we have the video in our mock data, use that
-        if video_id in node2_videos:
-            video_info = node2_videos[video_id]
-            
-            # Enhance video info with additional metadata
-            enhanced_video_info = {
-                'video_id': video_id,
-                'title': video_info.get('title', ''),
-                'published_at': video_info.get('published_at', ''),
-                'duration': video_info.get('duration', 0),
-                'platforms': video_info.get('platforms', {}),
-                'nostr_posts': video_info.get('nostr_posts', []),
-                'npubs': video_info.get('npubs', {}),
-                'synced_at': video_info.get('synced_at', ''),
-                'has_file': video_info.get('platforms', {}).get('youtube', {}).get('downloaded', False)
-            }
-            
-            # Send enhanced video info
-            response_message = {
-                'type': 'video_info_response',
-                'request_id': request_id,
-                'success': True,
-                'video_info': enhanced_video_info
-            }
-            
-            node2.send_to_node(node, json.dumps(response_message))
-            print(f"Sent enhanced video info for {video_id} to node {node.id}")
-        else:
-            # Fall back to the original method
-            original_handle_video_info_request(node, message)
-    
-    # Replace the method with our mock
-    node2.handle_video_info_request = mock_handle_video_info_request
+    # Import message handlers if needed
+    # from decdata.message_handlers import handle_video_info_request
+
+    # Create a custom handler for video_info_request messages
+    def handle_video_info_request_message(node, message_type, sender_node, message):
+        if message_type == 'video_info_request':
+            video_id = message.get('video_id')
+            request_id = message.get('request_id')
+
+            # If we have the video in our mock data, use that
+            if video_id in node2_videos:
+                video_info = node2_videos[video_id]
+
+                # Enhance video info with additional metadata
+                enhanced_video_info = {
+                    'video_id': video_id,
+                    'title': video_info.get('title', ''),
+                    'published_at': video_info.get('published_at', ''),
+                    'duration': video_info.get('duration', 0),
+                    'platforms': video_info.get('platforms', {}),
+                    'nostr_posts': video_info.get('nostr_posts', []),
+                    'npubs': video_info.get('npubs', {}),
+                    'synced_at': video_info.get('synced_at', ''),
+                    'has_file': video_info.get('platforms', {}).get('youtube', {}).get('downloaded', False)
+                }
+
+                # Send enhanced video info
+                response_message = {
+                    'type': 'video_info_response',
+                    'request_id': request_id,
+                    'success': True,
+                    'video_info': enhanced_video_info
+                }
+
+                node.send_to_node(sender_node, json.dumps(response_message))
+                print(f"Sent enhanced video info for {video_id} to node {sender_node.id}")
+                return True
+            return False
+        return False
+
+    # Add our custom handler to node2
+    node2.add_message_handler(lambda node, sender_node, data:
+        handle_video_info_request_message(node,
+                                         json.loads(data) if isinstance(data, str) else data.get('type'),
+                                         sender_node,
+                                         json.loads(data) if isinstance(data, str) else data)
+    )
 
     # Start nodes in separate threads
     node1_thread = threading.Thread(target=run_node, args=(node1, 15))
@@ -285,7 +292,7 @@ def main(mock_post, mock_get):
 
     # Wait for connection to establish and catalogs to be exchanged
     time.sleep(10)
-    
+
     # Wait for threads to finish
     node1_thread.join()
     node2_thread.join()

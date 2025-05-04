@@ -1,5 +1,9 @@
 # NosVid & DecData: Video Collection and Decentralized Distribution
 
+[![CI](https://github.com/yourusername/nosvid/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/nosvid/actions/workflows/ci.yml)
+[![Python Tests](https://github.com/yourusername/nosvid/actions/workflows/pytest.yml/badge.svg)](https://github.com/yourusername/nosvid/actions/workflows/pytest.yml)
+[![codecov](https://codecov.io/gh/yourusername/nosvid/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/nosvid)
+
 This repository contains two integrated projects:
 
 1. **NosVid**: A tool for downloading and managing YouTube videos, specifically designed for the Einundzwanzig Podcast channel.
@@ -83,6 +87,24 @@ decdata search "bitcoin podcast"
 decdata download VIDEO_ID
 ```
 
+## Testing
+
+```bash
+# Run all tests
+./nosvid test
+
+# Run only unit tests
+./nosvid test --unit
+
+# Run only integration tests
+./nosvid test --integration
+
+# Run tests with coverage
+./nosvid test --coverage
+```
+
+For more information about testing, see the [Testing Documentation](tests/README.md).
+
 ## Documentation
 
 - [NosVid Documentation](docs/nosvid.md)
@@ -90,6 +112,7 @@ decdata download VIDEO_ID
 - [Setup Guide](docs/setup.md)
 - [Deployment Guide](docs/deployment.md)
 - [Management Guide](docs/management.md)
+- [Testing Documentation](tests/README.md)
 
 ## License
 

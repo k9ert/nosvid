@@ -120,9 +120,18 @@ class FileSystemVideoRepo(VideoRepo):
         # First check if the video directory exists and has metadata
         if os.path.exists(video_dir):
             metadata_file = os.path.join(video_dir, "metadata.json")
+            print(f"  Checking metadata file: {metadata_file}")
             if os.path.exists(metadata_file):
+                print(f"  Metadata file exists, loading...")
                 metadata = load_json_file(metadata_file)
-                return Video.from_dict(metadata)
+                print(f"  Loaded metadata: {metadata}")
+                video = Video.from_dict(metadata)
+                print(f"  Created video object: platforms={video.platforms}")
+                if video.platforms and "youtube" in video.platforms:
+                    print(
+                        f"  YouTube downloaded: {video.platforms['youtube'].downloaded}"
+                    )
+                return video
 
         # If not found in the video directory, check the channel metadata files
         channel_metadata_files = glob.glob(
@@ -188,9 +197,17 @@ class FileSystemVideoRepo(VideoRepo):
         # Load metadata for each video
         videos = []
         for video_id in video_dirs:
+            print(f"Loading metadata for video {video_id}")
             video = self.get_by_id(video_id, channel_title)
             if video:
+                print(f"  Loaded video {video_id}: platforms={video.platforms}")
+                if video.platforms and "youtube" in video.platforms:
+                    print(
+                        f"  YouTube downloaded: {video.platforms['youtube'].downloaded}"
+                    )
                 videos.append(video)
+            else:
+                print(f"  Failed to load video {video_id}")
 
         # Sort videos
         reverse = sort_order.lower() == "desc"

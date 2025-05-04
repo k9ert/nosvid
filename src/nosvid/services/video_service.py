@@ -228,6 +228,7 @@ class VideoService:
                     and video.platforms["youtube"].downloaded
                 ):
                     stats["total_downloaded"] += 1
+                    print(f"  Counted as downloaded: {video.video_id}")
 
                 # Check if uploaded to Nostrmedia
                 if (
@@ -236,6 +237,7 @@ class VideoService:
                     and video.platforms["nostrmedia"].url
                 ):
                     stats["total_uploaded_nm"] += 1
+                    print(f"  Counted as uploaded to nostrmedia: {video.video_id}")
 
                 # Check if posted to Nostr
                 if video.nostr_posts and len(video.nostr_posts) > 0:

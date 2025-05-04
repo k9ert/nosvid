@@ -158,6 +158,9 @@ def update_video_metadata(
 
     This endpoint allows updating video metadata from external sources like DecData peers.
     It will merge the provided metadata with existing metadata, preserving local data when in conflict.
+
+    IMPORTANT: This endpoint does NOT trigger a YouTube metadata fetch. It only updates the local metadata.
+    To fetch metadata from YouTube, use the /videos/{video_id}/platforms/youtube endpoint.
     """
     # First, check if the video exists
     video_result = video_service.get_video(video_id, channel_title)
@@ -194,6 +197,10 @@ def update_video_metadata(
     # Update the video with the provided metadata
     # We'll implement the merge logic in the video service
     metadata_dict = {k: v for k, v in request.model_dump().items() if v is not None}
+
+    # Log the metadata being updated
+    print(f"Updating metadata for video {video_id} with: {metadata_dict}")
+
     result = video_service.update_metadata(
         video_id=video_id,
         channel_title=channel_title,

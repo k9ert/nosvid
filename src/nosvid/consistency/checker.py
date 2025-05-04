@@ -114,11 +114,77 @@ class ConsistencyChecker:
             inconsistencies += 1
             issues.append(issue)
 
+        # Stage 3: Verify MP4 files against metadata
+        self.logger.info("\nStage 3: Verifying MP4 files against metadata")
+        mp4_issues = self._verify_mp4_files(video_dirs, fix_issues)
+
+        # Add MP4 issues to the overall issues list
+        for issue in mp4_issues:
+            inconsistencies += 1
+            issues.append(issue)
+
         # Print summary
         self.logger.info("\nConsistency check completed!")
         self.logger.info(f"Total videos: {len(video_dirs)}")
         self.logger.info(f"Videos checked: {checked}")
         self.logger.info(f"Inconsistencies found: {inconsistencies}")
+
+        # Prepare final report
+        # Count inconsistencies by stage
+        metadata_issues = sum(
+            1
+            for issue in issues
+            if issue["issue"]
+            in [
+                "missing_metadata",
+                "invalid_metadata",
+                "generation_error",
+                "inconsistent_metadata",
+            ]
+        )
+        channel_videos_issues = sum(
+            1
+            for issue in issues
+            if issue["issue"]
+            in ["test_video_directory", "sync_history_only", "invalid_video_directory"]
+        )
+        mp4_metadata_issues = sum(
+            1 for issue in issues if issue["issue"] == "mp4_metadata_mismatch"
+        )
+
+        # Calculate percentages
+        metadata_percentage = (
+            (metadata_issues / len(video_dirs) * 100) if len(video_dirs) > 0 else 0
+        )
+        channel_videos_percentage = (
+            (channel_videos_issues / len(video_dirs) * 100)
+            if len(video_dirs) > 0
+            else 0
+        )
+        mp4_metadata_percentage = (
+            (mp4_metadata_issues / len(video_dirs) * 100) if len(video_dirs) > 0 else 0
+        )
+
+        # Print final report
+        self.logger.info("\nFinal Report:")
+        self.logger.info(
+            f"Stage 1: Checking metadata consistency for each video directory"
+        )
+        self.logger.info(
+            f"Inconsistencies found: {metadata_issues} ({metadata_percentage:.1f}%)"
+        )
+        self.logger.info("")
+        self.logger.info(
+            f"Stage 2: Verifying video directories against channel_videos JSON files"
+        )
+        self.logger.info(
+            f"Inconsistencies found: {channel_videos_issues} ({channel_videos_percentage:.1f}%)"
+        )
+        self.logger.info("")
+        self.logger.info(f"Stage 3: Verifying MP4 files against metadata")
+        self.logger.info(
+            f"Inconsistencies found: {mp4_metadata_issues} ({mp4_metadata_percentage:.1f}%)"
+        )
 
         if inconsistencies > 0:
             self.logger.info("\nInconsistencies:")
@@ -157,6 +223,11 @@ class ConsistencyChecker:
                 elif issue_type == "invalid_video_directory":
                     self.logger.info(
                         f"{i}. {video_id}: Invalid video directory - {issue['error']}"
+                        + (" (fixed)" if issue.get("fixed", False) else "")
+                    )
+                elif issue_type == "mp4_metadata_mismatch":
+                    self.logger.info(
+                        f"{i}. {video_id}: MP4 file exists but metadata doesn't indicate it's downloaded - {issue['error']}"
                         + (" (fixed)" if issue.get("fixed", False) else "")
                     )
 
@@ -731,6 +802,86 @@ class ConsistencyChecker:
             self.logger.info(
                 "All video directories are valid and exist in channel_videos JSON files"
             )
+
+        return issues
+
+    def _verify_mp4_files(
+        self, video_dirs: List[str], fix_issues: bool
+    ) -> List[Dict[str, Any]]:
+        """
+        Verify MP4 files against metadata
+
+        This checks if an MP4 file exists but the metadata doesn't indicate it's downloaded.
+
+        Args:
+            video_dirs: List of video directory names (video IDs)
+            fix_issues: Whether to fix inconsistencies
+
+        Returns:
+            List of issues found
+        """
+        issues = []
+        self.logger.info("Checking for MP4 files that don't match metadata...")
+
+        for video_id in video_dirs:
+            video_dir = os.path.join(self.videos_dir, video_id)
+
+            # Find all MP4 files in this video directory
+            mp4_files = []
+            for root, _, files in os.walk(video_dir):
+                for file in files:
+                    if file.endswith(".mp4"):
+                        mp4_files.append(os.path.join(root, file))
+
+            if not mp4_files:
+                # No MP4 files found, nothing to check
+                continue
+
+            # Load the metadata
+            metadata_file = os.path.join(video_dir, "metadata.json")
+            if not os.path.exists(metadata_file):
+                # No metadata file, this will be caught by other checks
+                continue
+
+            try:
+                metadata = load_json_file(metadata_file)
+            except Exception as e:
+                self.logger.error(f"Error loading metadata.json for {video_id}: {e}")
+                continue
+
+            # Check if the metadata indicates the video is downloaded
+            is_downloaded = False
+            if "platforms" in metadata and "youtube" in metadata["platforms"]:
+                is_downloaded = metadata["platforms"]["youtube"].get(
+                    "downloaded", False
+                )
+
+            if mp4_files and not is_downloaded:
+                self.logger.warning(
+                    f"MP4 file exists for {video_id} but metadata doesn't indicate it's downloaded"
+                )
+
+                if fix_issues:
+                    # Update the metadata to indicate the video is downloaded
+                    if "platforms" not in metadata:
+                        metadata["platforms"] = {}
+                    if "youtube" not in metadata["platforms"]:
+                        metadata["platforms"]["youtube"] = {}
+
+                    metadata["platforms"]["youtube"]["downloaded"] = True
+                    save_json_file(metadata_file, metadata)
+                    self.logger.info(
+                        f"Updated metadata for {video_id} to indicate it's downloaded"
+                    )
+
+                issues.append(
+                    {
+                        "video_id": video_id,
+                        "issue": "mp4_metadata_mismatch",
+                        "error": f"MP4 file exists but metadata doesn't indicate it's downloaded",
+                        "fixed": fix_issues,
+                    }
+                )
 
         return issues
 

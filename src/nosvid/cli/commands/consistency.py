@@ -14,11 +14,13 @@ def consistency_check_command(args):
 
     1. Check metadata.json files for all videos
     2. Verify video directories against channel_videos JSON files
+    3. Verify MP4 files against metadata (check if MP4 exists but metadata doesn't indicate it's downloaded)
 
     When run with --fix, this command will:
     - Recreate missing metadata.json files
     - Update inconsistent metadata.json files
     - Delete video directories that don't exist in channel_videos JSON files
+    - Update metadata to indicate videos are downloaded when MP4 files exist
 
     Args:
         args: Command line arguments
@@ -40,24 +42,9 @@ def consistency_check_command(args):
 
         # Create and run the consistency checker
         checker = ConsistencyChecker(args.output_dir, channel_title, logger)
-        result = checker.check(fix_issues=args.fix)
+        checker.check(fix_issues=args.fix)
 
-        # Print summary
-        inconsistencies = result["inconsistencies"]
-        total = result["total"]
-        if inconsistencies > 0:
-            percentage = (inconsistencies / total) * 100 if total > 0 else 0
-            logger.info(
-                f"\nSummary: {inconsistencies} inconsistencies found in {total} videos ({percentage:.1f}%)"
-            )
-            if args.fix:
-                logger.info("All inconsistencies have been fixed.")
-            else:
-                logger.info("Run with --fix to fix these inconsistencies.")
-        else:
-            logger.info(
-                f"\nSummary: No inconsistencies found in {total} videos. Repository is consistent!"
-            )
+        # The summary is already printed by the ConsistencyChecker
 
         return 0
     except Exception as e:

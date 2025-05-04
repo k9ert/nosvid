@@ -859,30 +859,33 @@
             fetch(`${API_URL}/statistics`)
                 .then(response => response.json())
                 .then(data => {
-                    // Update statistics in the UI
+                    console.log('Statistics data:', data);
+
+                    // Calculate percentages
+                    let metadataPercent = 0;
+                    let downloadedPercent = 0;
+                    let uploadedPercent = 0;
+                    let postedPercent = 0;
+                    let npubsPercent = 0;
+
+                    if (data.total_in_cache > 0) {
+                        metadataPercent = (data.total_with_metadata / data.total_in_cache * 100).toFixed(1);
+                        downloadedPercent = (data.total_downloaded / data.total_in_cache * 100).toFixed(1);
+                        uploadedPercent = (data.total_uploaded_nm / data.total_in_cache * 100).toFixed(1);
+                        postedPercent = (data.total_posted_nostr / data.total_in_cache * 100).toFixed(1);
+                        npubsPercent = (data.total_with_npubs / data.total_in_cache * 100).toFixed(1);
+                    }
+
+                    // Update statistics in the UI with percentages
                     document.getElementById('total-in-cache').textContent = data.total_in_cache;
-                    document.getElementById('total-with-metadata').textContent = data.total_with_metadata;
-                    document.getElementById('total-downloaded').textContent = data.total_downloaded;
-                    document.getElementById('total-uploaded-nm').textContent = data.total_uploaded_nm;
-                    document.getElementById('total-posted-nostr').textContent = data.total_posted_nostr;
-                    document.getElementById('total-with-npubs').textContent = data.total_with_npubs;
+                    document.getElementById('total-with-metadata').textContent = `${data.total_with_metadata} (${metadataPercent}%)`;
+                    document.getElementById('total-downloaded').textContent = `${data.total_downloaded} (${downloadedPercent}%)`;
+                    document.getElementById('total-uploaded-nm').textContent = `${data.total_uploaded_nm} (${uploadedPercent}%)`;
+                    document.getElementById('total-posted-nostr').textContent = `${data.total_posted_nostr} (${postedPercent}%)`;
+                    document.getElementById('total-with-npubs').textContent = `${data.total_with_npubs} (${npubsPercent}%)`;
                     document.getElementById('total-npubs').textContent = data.total_npubs;
 
-                    // Calculate and display percentages
-                    if (data.total_in_cache > 0) {
-                        const metadataPercent = (data.total_with_metadata / data.total_in_cache * 100).toFixed(1);
-                        const downloadedPercent = (data.total_downloaded / data.total_in_cache * 100).toFixed(1);
-                        const uploadedPercent = (data.total_uploaded_nm / data.total_in_cache * 100).toFixed(1);
-                        const postedPercent = (data.total_posted_nostr / data.total_in_cache * 100).toFixed(1);
-                        const npubsPercent = (data.total_with_npubs / data.total_in_cache * 100).toFixed(1);
-
-                        // Add percentages to the badges
-                        document.getElementById('total-with-metadata').textContent += ` (${metadataPercent}%)`;
-                        document.getElementById('total-downloaded').textContent += ` (${downloadedPercent}%)`;
-                        document.getElementById('total-uploaded-nm').textContent += ` (${uploadedPercent}%)`;
-                        document.getElementById('total-posted-nostr').textContent += ` (${postedPercent}%)`;
-                        document.getElementById('total-with-npubs').textContent += ` (${npubsPercent}%)`;
-                    }
+                    console.log('Updated statistics with percentages');
                 })
                 .catch(error => {
                     console.error('Error loading statistics:', error);

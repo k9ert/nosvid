@@ -69,3 +69,15 @@ Tests are automatically run on GitHub Actions for each push and pull request. Th
 ## Code Coverage
 
 Code coverage reports are generated for each test run and uploaded to Codecov. You can view the coverage report on the Codecov dashboard.
+
+To generate a local coverage report, run:
+
+```bash
+# Generate HTML coverage report
+./nosvid test --coverage
+
+# View the HTML report
+open htmlcov/index.html
+```
+
+The coverage report shows which parts of your code are covered by tests and which aren't, helping you identify areas that need more testing.

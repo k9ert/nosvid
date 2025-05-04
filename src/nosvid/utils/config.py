@@ -7,17 +7,21 @@ import os
 import yaml
 
 
-def load_config(config_path="config.yaml"):
+def load_config(config_path=None):
     """
     Load configuration from YAML file
 
     Args:
-        config_path: Path to the configuration file
+        config_path: Path to the configuration file (optional)
 
     Returns:
         Configuration dictionary
     """
-    # Try to load from config.yaml
+    # Check for config path in environment variable
+    if config_path is None:
+        config_path = os.environ.get("NOSVID_CONFIG_PATH", "config.yaml")
+
+    # Try to load from the config file
     try:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)

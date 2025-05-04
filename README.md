@@ -1,8 +1,8 @@
 # NosVid & DecData: Video Collection and Decentralized Distribution
 
-[![CI](https://github.com/yourusername/nosvid/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/nosvid/actions/workflows/ci.yml)
-[![Python Tests](https://github.com/yourusername/nosvid/actions/workflows/pytest.yml/badge.svg)](https://github.com/yourusername/nosvid/actions/workflows/pytest.yml)
-[![codecov](https://codecov.io/gh/yourusername/nosvid/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/nosvid)
+[![CI](https://github.com/k9ert/nosvid/actions/workflows/ci.yml/badge.svg)](https://github.com/k9ert/nosvid/actions/workflows/ci.yml)
+[![Python Tests](https://github.com/k9ert/nosvid/actions/workflows/pytest.yml/badge.svg)](https://github.com/k9ert/nosvid/actions/workflows/pytest.yml)
+[![codecov](https://codecov.io/gh/k9ert/nosvid/branch/main/graph/badge.svg)](https://codecov.io/gh/k9ert/nosvid)
 
 This repository contains two integrated projects:
 
@@ -42,7 +42,7 @@ DecData is a peer-to-peer network application that enables:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/nosvid.git
+git clone https://github.com/k9ert/nosvid.git
 cd nosvid
 
 # Create a virtual environment

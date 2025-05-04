@@ -2,8 +2,9 @@
 Unit tests for the node ID formatting feature in DecData.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 # Import the module to test
 from decdata.base_node import BaseNode
@@ -16,7 +17,9 @@ def node_prefix_provider():
 
     Returns a function that can be used to get and set the prefix value.
     """
-    prefix_value = ['test-node-']  # Use a list to allow modification in nested functions
+    prefix_value = [
+        "test-node-"
+    ]  # Use a list to allow modification in nested functions
 
     def _get_prefix():
         return prefix_value[0]
@@ -43,36 +46,37 @@ class TestNodeId:
             host="127.0.0.1",
             port=2122,
             id=test_id,
-            node_prefix_provider=node_prefix_provider
+            node_prefix_provider=node_prefix_provider,
         )
 
         # Check that the ID was formatted correctly
-        assert node.id.startswith('test-node-')
+        assert node.id.startswith("test-node-")
         assert len(node.id) == 30  # Exactly 30 characters
         assert node.original_id == test_id
 
-    def test_node_id_with_generated_id(self, mock_p2p_node, node_prefix_provider, monkeypatch):
+    def test_node_id_with_generated_id(
+        self, mock_p2p_node, node_prefix_provider, monkeypatch
+    ):
         """Test that an auto-generated node ID is formatted correctly."""
         # Mock the Node.generate_id method to return a predictable ID
-        monkeypatch.setattr('p2pnetwork.node.Node.generate_id',
-                           lambda _: "generated1234567890")
+        monkeypatch.setattr(
+            "p2pnetwork.node.Node.generate_id", lambda _: "generated1234567890"
+        )
 
         # Create a node with an auto-generated ID and inject the prefix provider
         node = BaseNode(
-            host="127.0.0.1",
-            port=2123,
-            node_prefix_provider=node_prefix_provider
+            host="127.0.0.1", port=2123, node_prefix_provider=node_prefix_provider
         )
 
         # Check that the ID was formatted correctly
-        assert node.id.startswith('test-node-')
+        assert node.id.startswith("test-node-")
         assert len(node.id) == 30  # Exactly 30 characters
         assert node.original_id is not None
 
     def test_node_id_with_custom_prefix(self, mock_p2p_node, node_prefix_provider):
         """Test that a custom prefix from config is used."""
         # Set the node prefix to a custom value
-        node_prefix_provider.set_prefix('custom-prefix-')
+        node_prefix_provider.set_prefix("custom-prefix-")
 
         # Create a node with a specific ID and inject the prefix provider
         test_id = "abcdefghijklmnopqrstuvwxyz1234567890"
@@ -80,11 +84,11 @@ class TestNodeId:
             host="127.0.0.1",
             port=2124,
             id=test_id,
-            node_prefix_provider=node_prefix_provider
+            node_prefix_provider=node_prefix_provider,
         )
 
         # Check that the ID was formatted with the custom prefix
-        assert node.id.startswith('custom-prefix-')
+        assert node.id.startswith("custom-prefix-")
         assert node.original_id == test_id
 
         # Check that the total length is exactly 30 characters
@@ -93,7 +97,7 @@ class TestNodeId:
     def test_node_id_length_limit(self, mock_p2p_node, node_prefix_provider):
         """Test that the node ID is limited to 30 characters even with a long prefix."""
         # Set the node prefix to a very long value
-        node_prefix_provider.set_prefix('very-long-prefix-that-exceeds-limit-')
+        node_prefix_provider.set_prefix("very-long-prefix-that-exceeds-limit-")
 
         # Create a node with a specific ID and inject the prefix provider
         test_id = "abcdefhijklmnopqrstuvwxyz1234567890"
@@ -101,7 +105,7 @@ class TestNodeId:
             host="127.0.0.1",
             port=2125,
             id=test_id,
-            node_prefix_provider=node_prefix_provider
+            node_prefix_provider=node_prefix_provider,
         )
 
         # Check that the total length is exactly 30 characters

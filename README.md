@@ -53,6 +53,32 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .
 ```
 
+### Development Setup
+
+For development, you can use the provided setup script:
+
+```bash
+# Run the setup script
+./scripts/setup_dev_environment.sh
+```
+
+This script will:
+- Create a virtual environment if it doesn't exist
+- Install development dependencies
+- Set up pre-commit hooks
+
+Alternatively, you can set up the development environment manually:
+
+```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Install pre-commit hooks
+pre-commit install
+```
+
+The pre-commit hooks will automatically format your code using Black and sort imports with isort when you commit changes. Additional hooks for flake8 and mypy are available in the configuration but are commented out until the codebase is cleaned up.
+
 ### Basic Usage
 
 #### NosVid

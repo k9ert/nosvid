@@ -6,6 +6,7 @@ import unittest
 
 from src.nosvid.api.app import app
 
+
 class TestApiClient(unittest.TestCase):
     """Integration test for the API endpoints"""
 
@@ -27,7 +28,9 @@ class TestApiClient(unittest.TestCase):
         self.assertIn("/videos/{video_id}/mp4", endpoint_paths)
 
         # Check for the download endpoints
-        download_paths = [route.path for route in routes if route.path.endswith("/download")]
+        download_paths = [
+            route.path for route in routes if route.path.endswith("/download")
+        ]
         # Check for the YouTube download endpoint
         self.assertIn("/videos/{video_id}/platforms/youtube/download", download_paths)
         # Check for the download status endpoint
@@ -42,7 +45,7 @@ class TestApiClient(unittest.TestCase):
             video_id="test123",
             title="Test Video",
             published_at="2023-01-01T12:00:00",
-            duration=60
+            duration=60,
         )
 
         # Add a NostrPost to the video
@@ -51,7 +54,7 @@ class TestApiClient(unittest.TestCase):
             pubkey="test_pubkey",
             uploaded_at="2023-01-01T12:00:00",
             nostr_uri="nostr:note1test",
-            links={"test": "https://test.com"}
+            links={"test": "https://test.com"},
         )
         video.nostr_posts.append(post)
 
@@ -64,16 +67,19 @@ class TestApiClient(unittest.TestCase):
             "title": video.title,
             "published_at": video.published_at,
             "duration": video.duration,
-            "platforms": {name: platform.to_dict() for name, platform in video.platforms.items()},
+            "platforms": {
+                name: platform.to_dict() for name, platform in video.platforms.items()
+            },
             "nostr_posts": nostr_posts,
             "npubs": video.npubs,
-            "synced_at": video.synced_at
+            "synced_at": video.synced_at,
         }
 
         # Check that the NostrPost was properly serialized
         self.assertIn("nostr_posts", video_dict)
         self.assertEqual(len(video_dict["nostr_posts"]), 1)
         self.assertEqual(video_dict["nostr_posts"][0]["event_id"], "test_event_id")
+
 
 if __name__ == "__main__":
     unittest.main()

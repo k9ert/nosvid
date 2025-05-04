@@ -2,22 +2,32 @@
 Videos API endpoints
 """
 
-import os
 import glob
+import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from fastapi.responses import RedirectResponse, FileResponse
-from typing import List, Optional, Dict, Any
+from fastapi.responses import FileResponse, RedirectResponse
 
-from ...services.video_service import VideoService
-from ...utils.filesystem import get_video_dir, get_platform_dir, load_json_file, load_text_file
 from ...platforms.youtube import find_youtube_video_file
-from ..dependencies import get_video_service, get_channel_title
+from ...services.video_service import VideoService
+from ...utils.filesystem import (
+    get_platform_dir,
+    get_video_dir,
+    load_json_file,
+    load_text_file,
+)
+from ..dependencies import get_channel_title, get_video_service
 from ..models import (
-    VideoResponse, VideoListResponse, DownloadRequest, DownloadResponse,
-    NostrmediaUploadRequest, NostrmediaUrlRequest, UpdateMetadataRequest,
-    PlatformResponse
+    DownloadRequest,
+    DownloadResponse,
+    NostrmediaUploadRequest,
+    NostrmediaUrlRequest,
+    PlatformResponse,
+    UpdateMetadataRequest,
+    VideoListResponse,
+    VideoResponse,
 )
 
 # Create router
@@ -26,12 +36,14 @@ router = APIRouter()
 
 @router.get("", response_model=VideoListResponse)
 def list_videos(
-    limit: Optional[int] = Query(None, description="Maximum number of videos to return"),
+    limit: Optional[int] = Query(
+        None, description="Maximum number of videos to return"
+    ),
     offset: int = Query(0, description="Number of videos to skip"),
     sort_by: str = Query("published_at", description="Field to sort by"),
     sort_order: str = Query("desc", description="Sort order ('asc' or 'desc')"),
     channel_title: str = Depends(get_channel_title),
-    video_service: VideoService = Depends(get_video_service)
+    video_service: VideoService = Depends(get_video_service),
 ):
     """
     List videos with pagination and sorting
@@ -42,7 +54,7 @@ def list_videos(
         limit=None,
         offset=0,
         sort_by=sort_by,
-        sort_order=sort_order
+        sort_order=sort_order,
     )
 
     if not total_result.success:
@@ -56,7 +68,7 @@ def list_videos(
         limit=limit,
         offset=offset,
         sort_by=sort_by,
-        sort_order=sort_order
+        sort_order=sort_order,
     )
 
     if not result.success:
@@ -76,10 +88,13 @@ def list_videos(
             "title": video.title,
             "published_at": video.published_at,
             "duration": video.duration,
-            "platforms": {name: platform.to_dict() for name, platform in (video.platforms or {}).items()},
+            "platforms": {
+                name: platform.to_dict()
+                for name, platform in (video.platforms or {}).items()
+            },
             "nostr_posts": nostr_posts,
             "npubs": video.npubs or {},
-            "synced_at": video.synced_at
+            "synced_at": video.synced_at,
         }
         processed_videos.append(video_dict)
 
@@ -87,7 +102,7 @@ def list_videos(
         "videos": processed_videos,
         "total": total_count,
         "offset": offset,
-        "limit": limit
+        "limit": limit,
     }
 
 
@@ -95,7 +110,7 @@ def list_videos(
 def get_video(
     video_id: str,
     channel_title: str = Depends(get_channel_title),
-    video_service: VideoService = Depends(get_video_service)
+    video_service: VideoService = Depends(get_video_service),
 ):
     """
     Get a video by ID
@@ -119,10 +134,13 @@ def get_video(
         "title": video.title,
         "published_at": video.published_at,
         "duration": video.duration,
-        "platforms": {name: platform.to_dict() for name, platform in (video.platforms or {}).items()},
+        "platforms": {
+            name: platform.to_dict()
+            for name, platform in (video.platforms or {}).items()
+        },
         "nostr_posts": nostr_posts,
         "npubs": video.npubs or {},
-        "synced_at": video.synced_at
+        "synced_at": video.synced_at,
     }
 
     return video_dict
@@ -133,7 +151,7 @@ def update_video_metadata(
     video_id: str,
     request: UpdateMetadataRequest,
     channel_title: str = Depends(get_channel_title),
-    video_service: VideoService = Depends(get_video_service)
+    video_service: VideoService = Depends(get_video_service),
 ):
     """
     Update metadata for a video
@@ -153,7 +171,7 @@ def update_video_metadata(
                 channel_title=channel_title,
                 title=request.title,
                 published_at=request.published_at,
-                duration=request.duration or 0
+                duration=request.duration or 0,
             )
 
             if not create_result.success:
@@ -164,7 +182,10 @@ def update_video_metadata(
             if not video_result.success:
                 raise HTTPException(status_code=500, detail=video_result.error)
         else:
-            raise HTTPException(status_code=404, detail=f"Video {video_id} not found and insufficient data to create it")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Video {video_id} not found and insufficient data to create it",
+            )
 
     video = video_result.data
     if not video:
@@ -176,7 +197,7 @@ def update_video_metadata(
     result = video_service.update_metadata(
         video_id=video_id,
         channel_title=channel_title,
-        metadata=metadata_dict  # Only include fields that were provided
+        metadata=metadata_dict,  # Only include fields that were provided
     )
 
     if not result.success:
@@ -184,7 +205,7 @@ def update_video_metadata(
 
     return {
         "success": True,
-        "message": f"Metadata updated successfully for video {video_id}"
+        "message": f"Metadata updated successfully for video {video_id}",
     }
 
 
@@ -192,7 +213,7 @@ def update_video_metadata(
 def get_video_mp4(
     video_id: str,
     channel_title: str = Depends(get_channel_title),
-    video_service: VideoService = Depends(get_video_service)
+    video_service: VideoService = Depends(get_video_service),
 ):
     """
     Get the MP4 video file
@@ -220,12 +241,18 @@ def get_video_mp4(
         raise HTTPException(status_code=404, detail=f"Video {video_id} not found")
 
     # Check if the video has a nostrmedia URL
-    if video.platforms and 'nostrmedia' in video.platforms and video.platforms['nostrmedia'].url:
+    if (
+        video.platforms
+        and "nostrmedia" in video.platforms
+        and video.platforms["nostrmedia"].url
+    ):
         # Redirect to the nostrmedia URL
-        return RedirectResponse(url=video.platforms['nostrmedia'].url)
+        return RedirectResponse(url=video.platforms["nostrmedia"].url)
 
     # If no nostrmedia URL, try to find the local file
-    videos_dir = os.path.join(video_service.video_repository.base_dir, channel_title, "videos")
+    videos_dir = os.path.join(
+        video_service.video_repository.base_dir, channel_title, "videos"
+    )
     video_dir = get_video_dir(videos_dir, video_id)
 
     # Find the video file
@@ -236,11 +263,10 @@ def get_video_mp4(
         return FileResponse(
             path=video_file,
             filename=os.path.basename(video_file),
-            media_type="video/mp4"
+            media_type="video/mp4",
         )
 
     # If no file is found, return a 404
     raise HTTPException(
-        status_code=404,
-        detail=f"No MP4 file found for video {video_id}"
+        status_code=404, detail=f"No MP4 file found for video {video_id}"
     )

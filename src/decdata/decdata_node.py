@@ -8,20 +8,20 @@ It integrates all components of the DecData system.
 """
 
 import json
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from .base_node import BaseNode
 from .catalog_manager import CatalogManager
-from .video_operations import VideoOperations
 from .message_handlers import (
-    request_video_info,
-    handle_search_message,
-    handle_search_result_message,
     handle_download_request,
     handle_file_data,
-    handle_video_info_request
+    handle_search_message,
+    handle_search_result_message,
+    handle_video_info_request,
+    request_video_info,
 )
 from .message_handlers_part2 import handle_video_info_response
+from .video_operations import VideoOperations
 
 
 class DecDataNode(BaseNode):
@@ -31,11 +31,16 @@ class DecDataNode(BaseNode):
     This class integrates all components of the DecData system.
     """
 
-    def __init__(self, host: str, port: int,
-                 nosvid_api_url: str = "http://localhost:2121/api",
-                 id: str = None, max_connections: int = 0,
-                 sync_interval: int = 300,
-                 node_prefix_provider=None):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        nosvid_api_url: str = "http://localhost:2121/api",
+        id: str = None,
+        max_connections: int = 0,
+        sync_interval: int = 300,
+        node_prefix_provider=None,
+    ):
         """
         Initialize the DecData node.
 
@@ -49,8 +54,12 @@ class DecDataNode(BaseNode):
             node_prefix_provider: Function that returns the node prefix (for testing)
         """
         super(DecDataNode, self).__init__(
-            host, port, nosvid_api_url, id, max_connections,
-            node_prefix_provider=node_prefix_provider
+            host,
+            port,
+            nosvid_api_url,
+            id,
+            max_connections,
+            node_prefix_provider=node_prefix_provider,
         )
 
         # Initialize components
@@ -101,23 +110,23 @@ class DecDataNode(BaseNode):
             node: The node that sent the message
             message: The parsed message
         """
-        message_type = message.get('type')
+        message_type = message.get("type")
 
-        if message_type == 'catalog':
+        if message_type == "catalog":
             self.catalog_manager.handle_catalog_message(node, message)
-        elif message_type == 'search':
+        elif message_type == "search":
             handle_search_message(self, node, message)
-        elif message_type == 'search_result':
+        elif message_type == "search_result":
             handle_search_result_message(self, node, message)
-        elif message_type == 'download_request':
+        elif message_type == "download_request":
             handle_download_request(self, node, message)
-        elif message_type == 'file_data':
+        elif message_type == "file_data":
             handle_file_data(self, node, message)
-        elif message_type == 'video_info_request':
+        elif message_type == "video_info_request":
             handle_video_info_request(self, node, message)
-        elif message_type == 'video_info_response':
+        elif message_type == "video_info_response":
             handle_video_info_response(self, node, message)
-        elif message_type == 'message':
+        elif message_type == "message":
             # Handle simple message type for interactive mode
             print(f"Message from {node.id}: {message.get('content', '')}")
         else:

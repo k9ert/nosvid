@@ -2,8 +2,9 @@
 Status API endpoints
 """
 
+from typing import Any, Dict, List
+
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Dict, Any
 
 from ..services.scheduler_service import SchedulerService
 from ..services.video_service import download_status
@@ -12,10 +13,12 @@ from .models import DownloadStatusResponse
 # Create router
 router = APIRouter()
 
+
 # Dependency
 def get_scheduler_service():
     """Get the scheduler service"""
     return SchedulerService()
+
 
 @router.get("/jobs", response_model=List[Dict[str, Any]])
 def get_jobs(scheduler: SchedulerService = Depends(get_scheduler_service)):
@@ -23,6 +26,7 @@ def get_jobs(scheduler: SchedulerService = Depends(get_scheduler_service)):
     Get all scheduled jobs
     """
     return scheduler.get_all_jobs()
+
 
 @router.get("/jobs/{job_id}", response_model=Dict[str, Any])
 def get_job(job_id: str, scheduler: SchedulerService = Depends(get_scheduler_service)):
@@ -34,8 +38,11 @@ def get_job(job_id: str, scheduler: SchedulerService = Depends(get_scheduler_ser
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     return job
 
+
 @router.post("/jobs/{job_id}/enable")
-def enable_job(job_id: str, scheduler: SchedulerService = Depends(get_scheduler_service)):
+def enable_job(
+    job_id: str, scheduler: SchedulerService = Depends(get_scheduler_service)
+):
     """
     Enable a job
     """
@@ -44,8 +51,11 @@ def enable_job(job_id: str, scheduler: SchedulerService = Depends(get_scheduler_
         raise HTTPException(status_code=400, detail=f"Failed to enable job {job_id}")
     return {"message": f"Job {job_id} enabled successfully"}
 
+
 @router.post("/jobs/{job_id}/disable")
-def disable_job(job_id: str, scheduler: SchedulerService = Depends(get_scheduler_service)):
+def disable_job(
+    job_id: str, scheduler: SchedulerService = Depends(get_scheduler_service)
+):
     """
     Disable a job
     """

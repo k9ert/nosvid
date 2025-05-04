@@ -7,11 +7,12 @@ extending the Node class from p2pnetwork.
 """
 
 import json
-import threading
 import sys
-from typing import Dict, List, Any, Callable
-from p2pnetwork.node import Node
+import threading
 from pathlib import Path
+from typing import Any, Callable, Dict, List
+
+from p2pnetwork.node import Node
 
 # Add the parent directory to sys.path to allow importing nosvid modules
 parent_dir = str(Path(__file__).parent.parent)
@@ -19,6 +20,7 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from nosvid.utils.config import get_decdata_node_prefix
+
 from .nosvid_api_client import NosVidAPIClient
 
 
@@ -30,10 +32,15 @@ class BaseNode(Node):
     the core functionality needed for the DecData project.
     """
 
-    def __init__(self, host: str, port: int,
-                 nosvid_api_url: str = "http://localhost:2121/api",
-                 id: str = None, max_connections: int = 0,
-                 node_prefix_provider=None):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        nosvid_api_url: str = "http://localhost:2121/api",
+        id: str = None,
+        max_connections: int = 0,
+        node_prefix_provider=None,
+    ):
         """
         Initialize the Base Node.
 
@@ -67,7 +74,7 @@ class BaseNode(Node):
                 self.id = formatted_id[:30]
             # If the formatted ID is shorter than 30 characters, pad it with zeros
             elif len(formatted_id) < 30:
-                self.id = formatted_id.ljust(30, '0')
+                self.id = formatted_id.ljust(30, "0")
             else:
                 self.id = formatted_id
 
@@ -140,7 +147,9 @@ class BaseNode(Node):
         """
         if handler not in self.message_handlers:
             self.message_handlers.append(handler)
-            print(f"Added message handler: {handler.__name__ if hasattr(handler, '__name__') else handler}")
+            print(
+                f"Added message handler: {handler.__name__ if hasattr(handler, '__name__') else handler}"
+            )
 
     def node_message(self, node, data):
         """
@@ -160,14 +169,18 @@ class BaseNode(Node):
                 preview = str(data)[:100]
             print(f"Message from node {node.id}: {preview}...")
         except Exception as e:
-            print(f"Message from node {node.id}: <error displaying message preview: {e}>")
+            print(
+                f"Message from node {node.id}: <error displaying message preview: {e}>"
+            )
 
         # Call all registered message handlers
         for handler in self.message_handlers:
             try:
                 handler(self, node, data)
             except Exception as e:
-                print(f"Error in message handler {handler.__name__ if hasattr(handler, '__name__') else handler}: {e}")
+                print(
+                    f"Error in message handler {handler.__name__ if hasattr(handler, '__name__') else handler}: {e}"
+                )
 
         try:
             # Handle different data types
@@ -196,7 +209,7 @@ class BaseNode(Node):
             node: The node that sent the message
             message: The parsed message
         """
-        message_type = message.get('type')
+        message_type = message.get("type")
         print(f"Received message of type: {message_type}")
 
     def get_peers(self):

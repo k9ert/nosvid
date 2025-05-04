@@ -2,13 +2,14 @@
 Web application for nosvid
 """
 
-import os
 import logging
+import os
+
 from fastapi import FastAPI, Request
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.openapi.docs import get_swagger_ui_html
 
 from ..api.app import app as api_app
 from ..services.scheduler_service import SchedulerService
@@ -21,7 +22,7 @@ app = FastAPI(
     title="NosVid Web",
     version="1.0.0",
     docs_url=None,  # Disable default /docs endpoint
-    redoc_url=None  # Disable default /redoc endpoint
+    redoc_url=None,  # Disable default /redoc endpoint
 )
 
 # Mount API
@@ -34,6 +35,7 @@ templates = Jinja2Templates(directory=templates_dir)
 # Store whether cronjobs are enabled
 cronjobs_enabled = False
 
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """
@@ -41,15 +43,16 @@ async def index(request: Request):
     """
     return templates.TemplateResponse("index.html", {"request": request})
 
+
 @app.get("/status", response_class=HTMLResponse)
 async def status(request: Request):
     """
     Render the status page
     """
-    return templates.TemplateResponse("status.html", {
-        "request": request,
-        "cronjobs_enabled": cronjobs_enabled
-    })
+    return templates.TemplateResponse(
+        "status.html", {"request": request, "cronjobs_enabled": cronjobs_enabled}
+    )
+
 
 @app.get("/swagger", include_in_schema=False)
 async def swagger_ui_html():
@@ -60,8 +63,9 @@ async def swagger_ui_html():
         openapi_url="/api/openapi.json",
         title="NosVid API Documentation",
         swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
-        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
+        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
     )
+
 
 def run(port=8000, with_cronjobs=False):
     """
@@ -85,8 +89,10 @@ def run(port=8000, with_cronjobs=False):
         if jobs:
             logger.info(f"Scheduled jobs: {len(jobs)}")
             for job in jobs:
-                next_run = job.get('next_run', 'Not scheduled')
-                logger.info(f"  - {job['id']}: {job['description']} (Next run: {next_run})")
+                next_run = job.get("next_run", "Not scheduled")
+                logger.info(
+                    f"  - {job['id']}: {job['description']} (Next run: {next_run})"
+                )
         else:
             logger.info("No scheduled jobs configured")
     else:
@@ -94,5 +100,6 @@ def run(port=8000, with_cronjobs=False):
 
     # Start the web server
     import uvicorn
+
     logger.info(f"Starting web server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)

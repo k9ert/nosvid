@@ -81,7 +81,7 @@ fi
 CONFIG_FILE="$NOSVID_DIR/config.yaml"
 if [ -f "$CONFIG_FILE" ]; then
     echo "Updating config.yaml with the new cookies file path..."
-    
+
     # Check if the youtube section exists
     if grep -q "youtube:" "$CONFIG_FILE"; then
         # Check if the cookies_file entry exists

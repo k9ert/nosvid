@@ -3,12 +3,14 @@ Download command for nosvid CLI
 """
 
 import time
-from .base import get_channel_title
+
+from ...download.video import download_all_pending, download_video
+from ...metadata.list import list_videos
 from ...utils.config import get_default_download_delay, get_default_video_quality
 from ...utils.filesystem import setup_directory_structure
-from ...download.video import download_video, download_all_pending
 from ...utils.find_oldest import find_oldest_not_downloaded
-from ...metadata.list import list_videos
+from .base import get_channel_title
+
 
 def download_command(args):
     """
@@ -31,8 +33,8 @@ def download_command(args):
             dirs = setup_directory_structure(args.output_dir, channel_title)
             result = download_video(
                 video_id=args.video_id,
-                videos_dir=dirs['videos_dir'],
-                quality=args.quality
+                videos_dir=dirs["videos_dir"],
+                quality=args.quality,
             )
             if result:
                 print(f"Successfully downloaded video: {args.video_id}")
@@ -50,20 +52,20 @@ def download_command(args):
 
             # List all videos
             videos, _ = list_videos(
-                videos_dir=dirs['videos_dir'],
-                metadata_dir=dirs['metadata_dir'],
+                videos_dir=dirs["videos_dir"],
+                metadata_dir=dirs["metadata_dir"],
                 show_downloaded=False,
-                show_not_downloaded=True
+                show_not_downloaded=True,
             )
 
             # Download each video
             for video in videos:
-                video_id = video['video_id']
+                video_id = video["video_id"]
                 print(f"Downloading video: {video_id}")
                 result = download_video(
                     video_id=video_id,
-                    videos_dir=dirs['videos_dir'],
-                    quality=args.quality
+                    videos_dir=dirs["videos_dir"],
+                    quality=args.quality,
                 )
                 if result:
                     print(f"Successfully downloaded video: {video_id}")
@@ -85,10 +87,10 @@ def download_command(args):
 
         # List all videos
         videos, _ = list_videos(
-            videos_dir=dirs['videos_dir'],
-            metadata_dir=dirs['metadata_dir'],
+            videos_dir=dirs["videos_dir"],
+            metadata_dir=dirs["metadata_dir"],
             show_downloaded=False,
-            show_not_downloaded=True
+            show_not_downloaded=True,
         )
 
         # If there are no pending videos, return
@@ -98,13 +100,11 @@ def download_command(args):
 
         # Get the oldest video
         oldest_video = videos[0]
-        video_id = oldest_video['video_id']
+        video_id = oldest_video["video_id"]
 
         print(f"Downloading oldest pending video: {video_id}")
         result = download_video(
-            video_id=video_id,
-            videos_dir=dirs['videos_dir'],
-            quality=args.quality
+            video_id=video_id, videos_dir=dirs["videos_dir"], quality=args.quality
         )
         if result:
             print(f"Successfully downloaded video: {video_id}")
@@ -116,6 +116,7 @@ def download_command(args):
         print(f"Error: {str(e)}")
         return 1
 
+
 def register_download_parser(subparsers):
     """
     Register the download command parser
@@ -123,30 +124,27 @@ def register_download_parser(subparsers):
     Args:
         subparsers: Subparsers object from argparse
     """
-    download_parser = subparsers.add_parser(
-        'download',
-        help='Download videos'
-    )
+    download_parser = subparsers.add_parser("download", help="Download videos")
     download_parser.add_argument(
-        'video_id',
+        "video_id",
         type=str,
-        nargs='?',
-        help='ID of the video to download (if not specified, download the oldest pending video)'
+        nargs="?",
+        help="ID of the video to download (if not specified, download the oldest pending video)",
     )
     download_parser.add_argument(
-        '--all-pending',
-        action='store_true',
-        help='Download all videos that haven\'t been downloaded yet'
+        "--all-pending",
+        action="store_true",
+        help="Download all videos that haven't been downloaded yet",
     )
     download_parser.add_argument(
-        '--quality',
+        "--quality",
         type=str,
         default=get_default_video_quality(),
-        help='Video quality (e.g., best, 720p, etc.)'
+        help="Video quality (e.g., best, 720p, etc.)",
     )
     download_parser.add_argument(
-        '--delay',
+        "--delay",
         type=int,
         default=get_default_download_delay(),
-        help='Delay between downloads in seconds'
+        help="Delay between downloads in seconds",
     )

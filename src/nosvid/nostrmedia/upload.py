@@ -2,22 +2,28 @@
 Upload functionality for nostrmedia.com
 """
 
+import base64
+import hashlib
+import json
 import os
 import time
-import hashlib
-import requests
-import base64
-import json
 from datetime import datetime
+
+import requests
+
 from ..utils.config import get_nostr_key
 
 # Try to import nostr-sdk packages, but make them optional
 try:
-    from nostr_sdk import Keys, EventBuilder, Tag, Kind, Event, NostrSigner
+    from nostr_sdk import Event, EventBuilder, Keys, Kind, NostrSigner, Tag
+
     NOSTR_AVAILABLE = True
 except ImportError:
     NOSTR_AVAILABLE = False
-    print("Warning: nostr-sdk package not available. Nostrmedia upload functionality will be limited.")
+    print(
+        "Warning: nostr-sdk package not available. Nostrmedia upload functionality will be limited."
+    )
+
 
 def compute_sha256(file_path):
     """
@@ -38,6 +44,7 @@ def compute_sha256(file_path):
 
     return sha256_hash.hexdigest()
 
+
 def create_signed_event(keys, file_hash, file_path=None, debug=False):
     """
     Create a signed Nostr event for uploading to nostrmedia.com
@@ -57,7 +64,7 @@ def create_signed_event(keys, file_hash, file_path=None, debug=False):
     file_ext = None
     if file_path:
         file_ext = os.path.splitext(file_path)[1].lower()
-        if file_ext and file_ext.startswith('.'):
+        if file_ext and file_ext.startswith("."):
             file_ext = file_ext[1:]  # Remove the leading dot
 
     if debug:
@@ -118,6 +125,7 @@ def create_signed_event(keys, file_hash, file_path=None, debug=False):
 
     return event
 
+
 def upload_to_nostrmedia(file_path, private_key_str=None, debug=False):
     """
     Upload a file to nostrmedia.com
@@ -132,15 +140,12 @@ def upload_to_nostrmedia(file_path, private_key_str=None, debug=False):
     """
     if not NOSTR_AVAILABLE:
         return {
-            'success': False,
-            'error': "nostr-sdk package not available. Please install it with 'pip install nostr-sdk'"
+            "success": False,
+            "error": "nostr-sdk package not available. Please install it with 'pip install nostr-sdk'",
         }
 
     if not os.path.exists(file_path):
-        return {
-            'success': False,
-            'error': f"File not found: {file_path}"
-        }
+        return {"success": False, "error": f"File not found: {file_path}"}
 
     try:
         # Compute the SHA-256 hash of the file
@@ -162,16 +167,18 @@ def upload_to_nostrmedia(file_path, private_key_str=None, debug=False):
                 keys = Keys.parse(private_key_str)
             except Exception as e:
                 return {
-                    'success': False,
-                    'error': f"Invalid private key format: {str(e)}"
+                    "success": False,
+                    "error": f"Invalid private key format: {str(e)}",
                 }
         else:
             # Try to get the private key from config
-            config_nsec = get_nostr_key('nsec')
+            config_nsec = get_nostr_key("nsec")
 
             if debug and config_nsec:
                 print("\n=== DEBUG: Config Key ===")
-                print(f"Config nsec format: {config_nsec[:4]}...{config_nsec[-4:] if len(config_nsec) > 8 else ''}")
+                print(
+                    f"Config nsec format: {config_nsec[:4]}...{config_nsec[-4:] if len(config_nsec) > 8 else ''}"
+                )
 
             if config_nsec:
                 try:
@@ -183,7 +190,9 @@ def upload_to_nostrmedia(file_path, private_key_str=None, debug=False):
                     keys = Keys.generate()
             else:
                 # If no key is provided or found in config, generate a new one
-                print("No private key provided or found in config. Generating a new one.")
+                print(
+                    "No private key provided or found in config. Generating a new one."
+                )
                 keys = Keys.generate()
 
         # Create and sign the event
@@ -201,9 +210,7 @@ def upload_to_nostrmedia(file_path, private_key_str=None, debug=False):
 
         # Prepare the upload request
         url = "https://nostrmedia.com/upload"
-        headers = {
-            "Authorization": f"Nostr {event_base64}"
-        }
+        headers = {"Authorization": f"Nostr {event_base64}"}
 
         if debug:
             print("\n=== DEBUG: Upload Request ===")
@@ -222,20 +229,20 @@ def upload_to_nostrmedia(file_path, private_key_str=None, debug=False):
             ".avi": "video/x-msvideo",
             ".mov": "video/quicktime",
             ".wmv": "video/x-ms-wmv",
-            ".flv": "video/x-flv"
+            ".flv": "video/x-flv",
         }
 
         if file_ext in mime_types:
             mime_type = mime_types[file_ext]
 
         if debug:
-            print(f"\n=== DEBUG: File Type ===\nFile extension: {file_ext}\nMIME type: {mime_type}")
+            print(
+                f"\n=== DEBUG: File Type ===\nFile extension: {file_ext}\nMIME type: {mime_type}"
+            )
 
         # Open the file for upload
         with open(file_path, "rb") as f:
-            files = {
-                "file": (os.path.basename(file_path), f, mime_type)
-            }
+            files = {"file": (os.path.basename(file_path), f, mime_type)}
 
             # Send the upload request
             print(f"Uploading file to {url}...")
@@ -251,14 +258,16 @@ def upload_to_nostrmedia(file_path, private_key_str=None, debug=False):
                 print("\n=== DEBUG: Response ===")
                 print(f"Status code: {response.status_code}")
                 print(f"Response headers: {response.headers}")
-                print(f"Response content: {response.text[:500]}{'...' if len(response.text) > 500 else ''}")
+                print(
+                    f"Response content: {response.text[:500]}{'...' if len(response.text) > 500 else ''}"
+                )
 
             if response.status_code == 200:
                 print("Upload successful!")
 
                 # Parse the response to get the actual URL
                 response_data = response.json() if response.content else {}
-                url = response_data.get('url', f"https://nostrmedia.com/{file_hash}")
+                url = response_data.get("url", f"https://nostrmedia.com/{file_hash}")
 
                 if debug:
                     print(f"\n=== DEBUG: URL Handling ===")
@@ -266,22 +275,19 @@ def upload_to_nostrmedia(file_path, private_key_str=None, debug=False):
                     print(f"File hash: {file_hash}")
 
                 return {
-                    'success': True,
-                    'url': url,
-                    'hash': file_hash,
-                    'response': response_data
+                    "success": True,
+                    "url": url,
+                    "hash": file_hash,
+                    "response": response_data,
                 }
             else:
                 print(f"Upload failed with status code {response.status_code}")
                 return {
-                    'success': False,
-                    'error': f"Upload failed with status code {response.status_code}",
-                    'response': response.text
+                    "success": False,
+                    "error": f"Upload failed with status code {response.status_code}",
+                    "response": response.text,
                 }
 
     except Exception as e:
         print(f"Error uploading file: {str(e)}")
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}

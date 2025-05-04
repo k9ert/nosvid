@@ -2,25 +2,43 @@
 Functions for uploading videos to the Nostr network
 """
 
+import json
 import os
 import time
-import json
 from datetime import datetime
 
 try:
     print("Attempting to import nostr_sdk...")
-    from nostr_sdk import Keys, EventBuilder, Tag, Kind, NostrSigner, Client, RelayOptions
+    from nostr_sdk import (
+        Client,
+        EventBuilder,
+        Keys,
+        Kind,
+        NostrSigner,
+        RelayOptions,
+        Tag,
+    )
+
     print("nostr_sdk imported successfully")
     NOSTR_AVAILABLE = True
 except ImportError as e:
     print(f"ImportError: {e}")
     NOSTR_AVAILABLE = False
-    print("Warning: nostr-sdk package not available. Nostr upload functionality will be limited.")
+    print(
+        "Warning: nostr-sdk package not available. Nostr upload functionality will be limited."
+    )
 
-from ..utils.config import get_nostr_key, get_nostr_relays, load_config
-from ..utils.filesystem import get_video_dir, get_platform_dir, load_json_file, save_json_file
-from ..nostrmedia.upload import upload_to_nostrmedia
 import os.path
+
+from ..nostrmedia.upload import upload_to_nostrmedia
+from ..utils.config import get_nostr_key, get_nostr_relays, load_config
+from ..utils.filesystem import (
+    get_platform_dir,
+    get_video_dir,
+    load_json_file,
+    save_json_file,
+)
+
 
 def post_to_nostr(video_id, channel_id, debug=False):
     """
@@ -56,12 +74,17 @@ def post_to_nostr(video_id, channel_id, debug=False):
 
         # Check if the video has been downloaded
         youtube_dir = os.path.join(video_dir, "youtube")
-        video_files = [f for f in os.listdir(youtube_dir) if f.endswith(".mp4")] if os.path.exists(youtube_dir) else []
+        video_files = (
+            [f for f in os.listdir(youtube_dir) if f.endswith(".mp4")]
+            if os.path.exists(youtube_dir)
+            else []
+        )
 
         if not video_files:
             print(f"No video files found in {youtube_dir}")
             print("Downloading video first...")
             from ..download.video import download_video
+
             download_result = download_video(video_id, channel_id)
             if not download_result:
                 print("Failed to download video")
@@ -80,8 +103,12 @@ def post_to_nostr(video_id, channel_id, debug=False):
 
         # Check if the video has been uploaded to nostrmedia
         nostrmedia_url = None
-        if 'platforms' in metadata and 'nostrmedia' in metadata['platforms'] and 'url' in metadata['platforms']['nostrmedia']:
-            nostrmedia_url = metadata['platforms']['nostrmedia']['url']
+        if (
+            "platforms" in metadata
+            and "nostrmedia" in metadata["platforms"]
+            and "url" in metadata["platforms"]["nostrmedia"]
+        ):
+            nostrmedia_url = metadata["platforms"]["nostrmedia"]["url"]
 
         if not nostrmedia_url:
             print("Video not uploaded to nostrmedia yet")
@@ -89,39 +116,41 @@ def post_to_nostr(video_id, channel_id, debug=False):
 
             # Upload to nostrmedia
             nostrmedia_result = upload_to_nostrmedia(video_id, channel_id, debug=debug)
-            if not nostrmedia_result or not nostrmedia_result.get('success'):
+            if not nostrmedia_result or not nostrmedia_result.get("success"):
                 print("Failed to upload to nostrmedia")
                 return False
 
             # Get the nostrmedia URL
-            nostrmedia_url = nostrmedia_result.get('url')
+            nostrmedia_url = nostrmedia_result.get("url")
             if not nostrmedia_url:
                 print("No nostrmedia URL returned")
                 return False
 
             # Update the metadata
-            metadata['platforms'] = metadata.get('platforms', {})
-            metadata['platforms']['nostrmedia'] = {
-                'url': nostrmedia_url,
-                'uploaded_at': datetime.now().isoformat()
+            metadata["platforms"] = metadata.get("platforms", {})
+            metadata["platforms"]["nostrmedia"] = {
+                "url": nostrmedia_url,
+                "uploaded_at": datetime.now().isoformat(),
             }
             save_json_file(metadata_path, metadata)
 
         # Prepare metadata for nostr
         nostr_metadata = {
-            'title': metadata.get('title', ''),
-            'full_description': metadata.get('description', ''),
-            'published_at': metadata.get('published_at', ''),
-            'channel_title': metadata.get('channel_title', ''),
-            'video_id': video_id,
-            'youtube_url': f"https://www.youtube.com/watch?v={video_id}",
-            'nostrmedia_url': nostrmedia_url
+            "title": metadata.get("title", ""),
+            "full_description": metadata.get("description", ""),
+            "published_at": metadata.get("published_at", ""),
+            "channel_title": metadata.get("channel_title", ""),
+            "video_id": video_id,
+            "youtube_url": f"https://www.youtube.com/watch?v={video_id}",
+            "nostrmedia_url": nostrmedia_url,
         }
 
         # Upload to nostr
         nostr_result = upload_to_nostr(video_path, nostr_metadata, debug=debug)
-        if not nostr_result or not nostr_result.get('success'):
-            print(f"Failed to upload to nostr: {nostr_result.get('error') if nostr_result else 'Unknown error'}")
+        if not nostr_result or not nostr_result.get("success"):
+            print(
+                f"Failed to upload to nostr: {nostr_result.get('error') if nostr_result else 'Unknown error'}"
+            )
             return False
 
         # Update the metadata with nostr information
@@ -130,26 +159,30 @@ def post_to_nostr(video_id, channel_id, debug=False):
 
         # Create or update the nostr metadata file
         nostr_metadata_path = os.path.join(nostr_dir, "metadata.json")
-        nostr_metadata = load_json_file(nostr_metadata_path) if os.path.exists(nostr_metadata_path) else {}
+        nostr_metadata = (
+            load_json_file(nostr_metadata_path)
+            if os.path.exists(nostr_metadata_path)
+            else {}
+        )
 
         # Add the new post to the posts array
-        nostr_metadata['posts'] = nostr_metadata.get('posts', [])
-        nostr_metadata['posts'].append({
-            'event_id': nostr_result.get('event_id'),
-            'pubkey': nostr_result.get('pubkey'),
-            'uploaded_at': datetime.now().isoformat(),
-            'nostr_uri': nostr_result.get('nostr_uri'),
-            'links': nostr_result.get('links', {})
-        })
+        nostr_metadata["posts"] = nostr_metadata.get("posts", [])
+        nostr_metadata["posts"].append(
+            {
+                "event_id": nostr_result.get("event_id"),
+                "pubkey": nostr_result.get("pubkey"),
+                "uploaded_at": datetime.now().isoformat(),
+                "nostr_uri": nostr_result.get("nostr_uri"),
+                "links": nostr_result.get("links", {}),
+            }
+        )
 
         # Save the nostr metadata
         save_json_file(nostr_metadata_path, nostr_metadata)
 
         # Update the main metadata file
-        metadata['platforms'] = metadata.get('platforms', {})
-        metadata['platforms']['nostr'] = {
-            'posts': nostr_metadata['posts']
-        }
+        metadata["platforms"] = metadata.get("platforms", {})
+        metadata["platforms"]["nostr"] = {"posts": nostr_metadata["posts"]}
         save_json_file(metadata_path, metadata)
 
         print(f"Successfully posted video {video_id} to Nostr")
@@ -158,6 +191,7 @@ def post_to_nostr(video_id, channel_id, debug=False):
     except Exception as e:
         print(f"Error posting to Nostr: {str(e)}")
         return False
+
 
 def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
     """
@@ -174,15 +208,12 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
     """
     if not NOSTR_AVAILABLE:
         return {
-            'success': False,
-            'error': "nostr-sdk package not available. Please install it with 'pip install nostr-sdk'"
+            "success": False,
+            "error": "nostr-sdk package not available. Please install it with 'pip install nostr-sdk'",
         }
 
     if not os.path.exists(file_path):
-        return {
-            'success': False,
-            'error': f"File not found: {file_path}"
-        }
+        return {"success": False, "error": f"File not found: {file_path}"}
 
     try:
         # Get file information
@@ -204,16 +235,18 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
                 keys = Keys.parse(private_key_str)
             except Exception as e:
                 return {
-                    'success': False,
-                    'error': f"Invalid private key format: {str(e)}"
+                    "success": False,
+                    "error": f"Invalid private key format: {str(e)}",
                 }
         else:
             # Try to get the private key from config
-            config_nsec = get_nostr_key('nsec')
+            config_nsec = get_nostr_key("nsec")
 
             if debug and config_nsec:
                 print("\n=== DEBUG: Config Key ===")
-                print(f"Config nsec format: {config_nsec[:4]}...{config_nsec[-4:] if len(config_nsec) > 8 else ''}")
+                print(
+                    f"Config nsec format: {config_nsec[:4]}...{config_nsec[-4:] if len(config_nsec) > 8 else ''}"
+                )
 
             if config_nsec:
                 try:
@@ -222,31 +255,38 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
                 except Exception as e:
                     print(f"Warning: Invalid private key in config: {str(e)}")
                     return {
-                        'success': False,
-                        'error': f"Invalid nsec key in config.yaml: {str(e)}"
+                        "success": False,
+                        "error": f"Invalid nsec key in config.yaml: {str(e)}",
                     }
             else:
                 return {
-                    'success': False,
-                    'error': "No private key provided or found in config."
+                    "success": False,
+                    "error": "No private key provided or found in config.",
                 }
 
         # Extract relevant metadata
-        title = metadata.get('title', 'Untitled Video')
-        description = metadata.get('full_description', metadata.get('description', ''))
-        published_at = metadata.get('published_at', '')
-        channel_title = metadata.get('channel_title', '')
-        video_id = metadata.get('video_id', '')
-        youtube_url = metadata.get('youtube_url', f"https://www.youtube.com/watch?v={video_id}" if video_id else '')
-        nostrmedia_url = metadata.get('nostrmedia_url', '')
+        title = metadata.get("title", "Untitled Video")
+        description = metadata.get("full_description", metadata.get("description", ""))
+        published_at = metadata.get("published_at", "")
+        channel_title = metadata.get("channel_title", "")
+        video_id = metadata.get("video_id", "")
+        youtube_url = metadata.get(
+            "youtube_url",
+            f"https://www.youtube.com/watch?v={video_id}" if video_id else "",
+        )
+        nostrmedia_url = metadata.get("nostrmedia_url", "")
 
         if debug:
             print("\n=== DEBUG: Metadata ===")
             print(f"Title: {title}")
             print(f"Channel: {channel_title}")
             print(f"Published: {published_at}")
-            print(f"Description length: {len(description) if description else 0} characters")
-            print(f"Using full_description: {'Yes' if 'full_description' in metadata else 'No'}")
+            print(
+                f"Description length: {len(description) if description else 0} characters"
+            )
+            print(
+                f"Using full_description: {'Yes' if 'full_description' in metadata else 'No'}"
+            )
 
         # Create content for the Nostr event
         content = f"# {title}\n\n"
@@ -291,7 +331,7 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
         tags.append(Tag.parse(["t", "video"]))
         if channel_title:
             # Convert channel title to a hashtag format (remove spaces, special chars)
-            channel_hashtag = ''.join(c for c in channel_title if c.isalnum())
+            channel_hashtag = "".join(c for c in channel_title if c.isalnum())
             tags.append(Tag.parse(["t", channel_hashtag]))
 
         # Add video metadata as tags
@@ -353,8 +393,10 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
             print("\n=== DEBUG: Relay Configuration ===")
             # Check if relays are from config or defaults
             config = load_config()
-            using_config_relays = 'nostr' in config and 'relays' in config['nostr']
-            print(f"Using {len(relays)} relays from {'config' if using_config_relays else 'defaults'}")
+            using_config_relays = "nostr" in config and "relays" in config["nostr"]
+            print(
+                f"Using {len(relays)} relays from {'config' if using_config_relays else 'defaults'}"
+            )
 
         if debug:
             print("\n=== DEBUG: Connecting to Relays ===")
@@ -421,12 +463,12 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
         # Try different ways to sign the event
         try:
             # Method 1: Use the builder's sign method if available
-            if hasattr(builder, 'sign'):
+            if hasattr(builder, "sign"):
                 event = loop.run_until_complete(builder.sign(signer))
                 if debug:
                     print("Event signed using builder.sign()")
             # Method 2: Use the to_event method if available
-            elif hasattr(builder, 'to_event'):
+            elif hasattr(builder, "to_event"):
                 event = builder.to_event(keys)
                 if debug:
                     print("Event signed using builder.to_event()")
@@ -450,7 +492,7 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
 
         try:
             # Try different ways to publish the event
-            if hasattr(client, 'publish_event'):
+            if hasattr(client, "publish_event"):
                 loop.run_until_complete(client.publish_event(event))
                 if debug:
                     print("Event published using client.publish_event()")
@@ -494,19 +536,13 @@ def upload_to_nostr(file_path, metadata, private_key_str=None, debug=False):
         print(f"View on Primal: {primal_link}")
 
         return {
-            'success': True,
-            'event_id': event_id,
-            'pubkey': pubkey,
-            'nostr_uri': nostr_uri,
-            'links': {
-                'snort': snort_link,
-                'primal': primal_link
-            }
+            "success": True,
+            "event_id": event_id,
+            "pubkey": pubkey,
+            "nostr_uri": nostr_uri,
+            "links": {"snort": snort_link, "primal": primal_link},
         }
 
     except Exception as e:
         print(f"Error uploading to Nostr: {str(e)}")
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}

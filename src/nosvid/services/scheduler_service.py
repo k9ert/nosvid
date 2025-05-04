@@ -2,21 +2,30 @@
 Scheduler service for nosvid with hardcoded scheduled tasks
 """
 
-import os
 import logging
+import os
 import os.path
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.jobstores.memory import MemoryJobStore
+
+from ..download.video import download_video
 
 # Import the functions we want to call directly
 from ..metadata.sync import sync_metadata
-from ..download.video import download_video
 from ..nostr.upload import post_to_nostr
 from ..nostrmedia.upload import upload_to_nostrmedia
-from ..utils.config import get_channel_id, get_default_video_quality, load_config, get_youtube_api_key, get_repository_dir
+from ..utils.config import (
+    get_channel_id,
+    get_default_video_quality,
+    get_repository_dir,
+    get_youtube_api_key,
+    load_config,
+)
+
 # We're using list_videos instead of these helper functions
 # from ..utils.find_oldest import find_oldest_video_without_download, find_oldest_video_without_nostr_post, find_oldest_video_without_nostrmedia
 
@@ -24,10 +33,12 @@ from ..utils.config import get_channel_id, get_default_video_quality, load_confi
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class SchedulerService:
     """
     Service for managing hardcoded scheduled jobs
     """
+
     _instance = None
 
     def __new__(cls):
@@ -48,8 +59,7 @@ class SchedulerService:
 
         self._initialized = True
         self.scheduler = BackgroundScheduler(
-            jobstores={'default': MemoryJobStore()},
-            timezone='UTC'
+            jobstores={"default": MemoryJobStore()}, timezone="UTC"
         )
         self.jobs = {}
 
@@ -90,9 +100,9 @@ class SchedulerService:
         """
         Add hourly sync job to the scheduler
         """
-        job_id = 'hourly_sync'
-        cron_expression = '0 * * * *'  # Every hour at minute 0
-        description = 'Sync metadata for new videos every hour'
+        job_id = "hourly_sync"
+        cron_expression = "0 * * * *"  # Every hour at minute 0
+        description = "Sync metadata for new videos every hour"
 
         try:
             # Add the job to the scheduler
@@ -100,18 +110,20 @@ class SchedulerService:
                 self._run_sync_job,
                 trigger=CronTrigger.from_crontab(cron_expression),
                 id=job_id,
-                replace_existing=True
+                replace_existing=True,
             )
 
             # Store job metadata
             self.jobs[job_id] = {
-                'id': job_id,
-                'command': 'sync',
-                'args': ['--force-refresh', '--max-videos', '5'],
-                'schedule': cron_expression,
-                'enabled': True,
-                'description': description,
-                'next_run': job.next_run_time.isoformat() if job.next_run_time else None
+                "id": job_id,
+                "command": "sync",
+                "args": ["--force-refresh", "--max-videos", "5"],
+                "schedule": cron_expression,
+                "enabled": True,
+                "description": description,
+                "next_run": job.next_run_time.isoformat()
+                if job.next_run_time
+                else None,
             }
 
             logger.info(f"Added job {job_id} with schedule {cron_expression}")
@@ -122,9 +134,9 @@ class SchedulerService:
         """
         Add daily download job to the scheduler
         """
-        job_id = 'daily_download'
-        cron_expression = '0 2 * * *'  # Every day at 2 AM
-        description = 'Download the oldest pending video every day'
+        job_id = "daily_download"
+        cron_expression = "0 2 * * *"  # Every day at 2 AM
+        description = "Download the oldest pending video every day"
 
         try:
             # Add the job to the scheduler
@@ -132,18 +144,20 @@ class SchedulerService:
                 self._run_download_job,
                 trigger=CronTrigger.from_crontab(cron_expression),
                 id=job_id,
-                replace_existing=True
+                replace_existing=True,
             )
 
             # Store job metadata
             self.jobs[job_id] = {
-                'id': job_id,
-                'command': 'download',
-                'args': ['--oldest'],
-                'schedule': cron_expression,
-                'enabled': True,
-                'description': description,
-                'next_run': job.next_run_time.isoformat() if job.next_run_time else None
+                "id": job_id,
+                "command": "download",
+                "args": ["--oldest"],
+                "schedule": cron_expression,
+                "enabled": True,
+                "description": description,
+                "next_run": job.next_run_time.isoformat()
+                if job.next_run_time
+                else None,
             }
 
             logger.info(f"Added job {job_id} with schedule {cron_expression}")
@@ -173,7 +187,7 @@ class SchedulerService:
                 channel_title="Einundzwanzig",
                 output_dir=repository_dir,
                 max_videos=5,
-                force_refresh=True
+                force_refresh=True,
             )
 
             if result:
@@ -182,9 +196,9 @@ class SchedulerService:
                 logger.error("Hourly sync job failed")
 
             # Update next run time
-            job = self.scheduler.get_job('hourly_sync')
+            job = self.scheduler.get_job("hourly_sync")
             if job and job.next_run_time:
-                self.jobs['hourly_sync']['next_run'] = job.next_run_time.isoformat()
+                self.jobs["hourly_sync"]["next_run"] = job.next_run_time.isoformat()
 
         except Exception as e:
             logger.error(f"Error executing hourly sync job: {str(e)}")
@@ -205,7 +219,10 @@ class SchedulerService:
 
             # Find the oldest video without download
             from ..metadata.list import list_videos
-            videos, _ = list_videos(videos_dir, show_downloaded=False, show_not_downloaded=True)
+
+            videos, _ = list_videos(
+                videos_dir, show_downloaded=False, show_not_downloaded=True
+            )
 
             if not videos:
                 logger.info("No pending videos to download")
@@ -213,16 +230,14 @@ class SchedulerService:
 
             # Get the first (oldest) video
             video = videos[0]
-            video_id = video['video_id']
+            video_id = video["video_id"]
 
             # Get the default video quality
             quality = get_default_video_quality()
 
             # Call the download_video function directly
             result = download_video(
-                video_id=video_id,
-                videos_dir=videos_dir,
-                quality=quality
+                video_id=video_id, videos_dir=videos_dir, quality=quality
             )
 
             if result:
@@ -231,9 +246,9 @@ class SchedulerService:
                 logger.error(f"Failed to download video {video_id}")
 
             # Update next run time
-            job = self.scheduler.get_job('daily_download')
+            job = self.scheduler.get_job("daily_download")
             if job and job.next_run_time:
-                self.jobs['daily_download']['next_run'] = job.next_run_time.isoformat()
+                self.jobs["daily_download"]["next_run"] = job.next_run_time.isoformat()
 
         except Exception as e:
             logger.error(f"Error executing daily download job: {str(e)}")
@@ -242,9 +257,9 @@ class SchedulerService:
         """
         Add weekly nostr posting job to the scheduler
         """
-        job_id = 'weekly_nostr'
-        cron_expression = '0 3 * * 0'  # Every Sunday at 3 AM
-        description = 'Post the oldest pending video to Nostr every week'
+        job_id = "weekly_nostr"
+        cron_expression = "0 3 * * 0"  # Every Sunday at 3 AM
+        description = "Post the oldest pending video to Nostr every week"
 
         try:
             # Add the job to the scheduler
@@ -252,18 +267,20 @@ class SchedulerService:
                 self._run_nostr_job,
                 trigger=CronTrigger.from_crontab(cron_expression),
                 id=job_id,
-                replace_existing=True
+                replace_existing=True,
             )
 
             # Store job metadata
             self.jobs[job_id] = {
-                'id': job_id,
-                'command': 'nostr',
-                'args': ['--oldest'],
-                'schedule': cron_expression,
-                'enabled': True,
-                'description': description,
-                'next_run': job.next_run_time.isoformat() if job.next_run_time else None
+                "id": job_id,
+                "command": "nostr",
+                "args": ["--oldest"],
+                "schedule": cron_expression,
+                "enabled": True,
+                "description": description,
+                "next_run": job.next_run_time.isoformat()
+                if job.next_run_time
+                else None,
             }
 
             logger.info(f"Added job {job_id} with schedule {cron_expression}")
@@ -285,21 +302,22 @@ class SchedulerService:
 
             # Find videos that have been downloaded but not posted to Nostr
             from ..metadata.list import list_videos
+
             videos, _ = list_videos(videos_dir)
 
             # Filter for videos that are downloaded but don't have Nostr posts
             pending_videos = []
             for video in videos:
-                if video.get('downloaded'):
+                if video.get("downloaded"):
                     # Check if the video has been posted to Nostr
                     has_nostr = False
-                    if 'platforms' in video and 'nostr' in video.get('platforms', {}):
+                    if "platforms" in video and "nostr" in video.get("platforms", {}):
                         # Check if there are any posts in the nostr platform
-                        nostr_data = video['platforms']['nostr']
-                        if 'posts' in nostr_data and len(nostr_data['posts']) > 0:
+                        nostr_data = video["platforms"]["nostr"]
+                        if "posts" in nostr_data and len(nostr_data["posts"]) > 0:
                             has_nostr = True
                         # For backward compatibility with old metadata format
-                        elif 'event_id' in nostr_data:
+                        elif "event_id" in nostr_data:
                             has_nostr = True
 
                     if not has_nostr:
@@ -311,13 +329,13 @@ class SchedulerService:
 
             # Get the first (oldest) video
             video = pending_videos[0]
-            video_id = video['video_id']
+            video_id = video["video_id"]
 
             # Call the post_to_nostr function directly
             result = post_to_nostr(
                 video_id=video_id,
                 channel_id="UCxSRxq14XIoMbFDEjMOPU5Q",  # Hardcoded channel ID
-                debug=False
+                debug=False,
             )
 
             if result:
@@ -326,9 +344,9 @@ class SchedulerService:
                 logger.error(f"Failed to post video {video_id} to Nostr")
 
             # Update next run time
-            job = self.scheduler.get_job('weekly_nostr')
+            job = self.scheduler.get_job("weekly_nostr")
             if job and job.next_run_time:
-                self.jobs['weekly_nostr']['next_run'] = job.next_run_time.isoformat()
+                self.jobs["weekly_nostr"]["next_run"] = job.next_run_time.isoformat()
 
         except Exception as e:
             logger.error(f"Error executing weekly nostr posting job: {str(e)}")
@@ -337,9 +355,9 @@ class SchedulerService:
         """
         Add regular sync job to the scheduler (every 5 minutes)
         """
-        job_id = 'regular_sync'
-        cron_expression = '*/5 * * * *'  # Every 5 minutes
-        description = 'Sync metadata for new videos every 5 minutes'
+        job_id = "regular_sync"
+        cron_expression = "*/5 * * * *"  # Every 5 minutes
+        description = "Sync metadata for new videos every 5 minutes"
 
         try:
             # Add the job to the scheduler
@@ -347,18 +365,20 @@ class SchedulerService:
                 self._run_regular_sync_job,
                 trigger=CronTrigger.from_crontab(cron_expression),
                 id=job_id,
-                replace_existing=True
+                replace_existing=True,
             )
 
             # Store job metadata
             self.jobs[job_id] = {
-                'id': job_id,
-                'command': 'sync',
-                'args': ['--max-videos', '10'],
-                'schedule': cron_expression,
-                'enabled': True,
-                'description': description,
-                'next_run': job.next_run_time.isoformat() if job.next_run_time else None
+                "id": job_id,
+                "command": "sync",
+                "args": ["--max-videos", "10"],
+                "schedule": cron_expression,
+                "enabled": True,
+                "description": description,
+                "next_run": job.next_run_time.isoformat()
+                if job.next_run_time
+                else None,
             }
 
             logger.info(f"Added job {job_id} with schedule {cron_expression}")
@@ -388,7 +408,7 @@ class SchedulerService:
                 channel_title="Einundzwanzig",
                 output_dir=repository_dir,
                 max_videos=10,
-                force_refresh=False  # Regular sync without force refresh
+                force_refresh=False,  # Regular sync without force refresh
             )
 
             if result:
@@ -397,9 +417,9 @@ class SchedulerService:
                 logger.error("Regular sync job failed")
 
             # Update next run time
-            job = self.scheduler.get_job('regular_sync')
+            job = self.scheduler.get_job("regular_sync")
             if job and job.next_run_time:
-                self.jobs['regular_sync']['next_run'] = job.next_run_time.isoformat()
+                self.jobs["regular_sync"]["next_run"] = job.next_run_time.isoformat()
 
         except Exception as e:
             logger.error(f"Error executing regular sync job: {str(e)}")
@@ -408,9 +428,9 @@ class SchedulerService:
         """
         Add regular download job to the scheduler (every 5 minutes)
         """
-        job_id = 'regular_download'
-        cron_expression = '*/5 * * * *'  # Every 5 minutes
-        description = 'Download 5 pending videos every 5 minutes'
+        job_id = "regular_download"
+        cron_expression = "*/5 * * * *"  # Every 5 minutes
+        description = "Download 5 pending videos every 5 minutes"
 
         try:
             # Add the job to the scheduler
@@ -418,18 +438,20 @@ class SchedulerService:
                 self._run_regular_download_job,
                 trigger=CronTrigger.from_crontab(cron_expression),
                 id=job_id,
-                replace_existing=True
+                replace_existing=True,
             )
 
             # Store job metadata
             self.jobs[job_id] = {
-                'id': job_id,
-                'command': 'download',
-                'args': ['--max-videos', '5'],
-                'schedule': cron_expression,
-                'enabled': True,
-                'description': description,
-                'next_run': job.next_run_time.isoformat() if job.next_run_time else None
+                "id": job_id,
+                "command": "download",
+                "args": ["--max-videos", "5"],
+                "schedule": cron_expression,
+                "enabled": True,
+                "description": description,
+                "next_run": job.next_run_time.isoformat()
+                if job.next_run_time
+                else None,
             }
 
             logger.info(f"Added job {job_id} with schedule {cron_expression}")
@@ -454,7 +476,10 @@ class SchedulerService:
 
             # Find videos that need to be downloaded
             from ..metadata.list import list_videos
-            videos, _ = list_videos(videos_dir, show_downloaded=False, show_not_downloaded=True)
+
+            videos, _ = list_videos(
+                videos_dir, show_downloaded=False, show_not_downloaded=True
+            )
 
             if not videos:
                 logger.info("No pending videos to download")
@@ -466,13 +491,11 @@ class SchedulerService:
 
             for i in range(min(max_videos, len(videos))):
                 video = videos[i]
-                video_id = video['video_id']
+                video_id = video["video_id"]
 
                 # Call the download_video function directly
                 result = download_video(
-                    video_id=video_id,
-                    videos_dir=videos_dir,
-                    quality=quality
+                    video_id=video_id, videos_dir=videos_dir, quality=quality
                 )
 
                 if result:
@@ -481,12 +504,16 @@ class SchedulerService:
                 else:
                     logger.error(f"Failed to download video {video_id}")
 
-            logger.info(f"Regular download job completed: {videos_downloaded} videos downloaded")
+            logger.info(
+                f"Regular download job completed: {videos_downloaded} videos downloaded"
+            )
 
             # Update next run time
-            job = self.scheduler.get_job('regular_download')
+            job = self.scheduler.get_job("regular_download")
             if job and job.next_run_time:
-                self.jobs['regular_download']['next_run'] = job.next_run_time.isoformat()
+                self.jobs["regular_download"][
+                    "next_run"
+                ] = job.next_run_time.isoformat()
 
         except Exception as e:
             logger.error(f"Error executing regular download job: {str(e)}")
@@ -495,9 +522,9 @@ class SchedulerService:
         """
         Add regular nostrmedia upload job to the scheduler (every 5 minutes)
         """
-        job_id = 'regular_nostrmedia'
-        cron_expression = '*/5 * * * *'  # Every 5 minutes
-        description = 'Upload pending videos to nostrmedia every 5 minutes'
+        job_id = "regular_nostrmedia"
+        cron_expression = "*/5 * * * *"  # Every 5 minutes
+        description = "Upload pending videos to nostrmedia every 5 minutes"
 
         try:
             # Add the job to the scheduler
@@ -505,18 +532,20 @@ class SchedulerService:
                 self._run_regular_nostrmedia_job,
                 trigger=CronTrigger.from_crontab(cron_expression),
                 id=job_id,
-                replace_existing=True
+                replace_existing=True,
             )
 
             # Store job metadata
             self.jobs[job_id] = {
-                'id': job_id,
-                'command': 'nostrmedia',
-                'args': ['--oldest'],
-                'schedule': cron_expression,
-                'enabled': True,
-                'description': description,
-                'next_run': job.next_run_time.isoformat() if job.next_run_time else None
+                "id": job_id,
+                "command": "nostrmedia",
+                "args": ["--oldest"],
+                "schedule": cron_expression,
+                "enabled": True,
+                "description": description,
+                "next_run": job.next_run_time.isoformat()
+                if job.next_run_time
+                else None,
             }
 
             logger.info(f"Added job {job_id} with schedule {cron_expression}")
@@ -538,12 +567,15 @@ class SchedulerService:
 
             # Find videos that have been downloaded but not uploaded to nostrmedia
             from ..metadata.list import list_videos
+
             videos, _ = list_videos(videos_dir)
 
             # Filter for videos that are downloaded but don't have nostrmedia URL
             pending_videos = []
             for video in videos:
-                if video.get('downloaded') and not video.get('platforms', {}).get('nostrmedia', {}).get('url'):
+                if video.get("downloaded") and not video.get("platforms", {}).get(
+                    "nostrmedia", {}
+                ).get("url"):
                     pending_videos.append(video)
 
             if not pending_videos:
@@ -552,14 +584,18 @@ class SchedulerService:
 
             # Get the first (oldest) video
             video = pending_videos[0]
-            video_id = video['video_id']
+            video_id = video["video_id"]
 
             # Get the video file path
             video_dir = os.path.join(videos_dir, video_id)
             youtube_dir = os.path.join(video_dir, "youtube")
 
             # Find the video file
-            video_files = [f for f in os.listdir(youtube_dir) if f.endswith(".mp4")] if os.path.exists(youtube_dir) else []
+            video_files = (
+                [f for f in os.listdir(youtube_dir) if f.endswith(".mp4")]
+                if os.path.exists(youtube_dir)
+                else []
+            )
 
             if not video_files:
                 logger.error(f"No video files found for {video_id}")
@@ -568,35 +604,37 @@ class SchedulerService:
             video_path = os.path.join(youtube_dir, video_files[0])
 
             # Call the upload_to_nostrmedia function directly
-            result = upload_to_nostrmedia(
-                file_path=video_path,
-                debug=False
-            )
+            result = upload_to_nostrmedia(file_path=video_path, debug=False)
 
-            if result and result.get('success'):
+            if result and result.get("success"):
                 logger.info(f"Uploaded video {video_id} to nostrmedia successfully")
 
                 # Update the metadata
                 metadata_path = os.path.join(video_dir, "metadata.json")
                 if os.path.exists(metadata_path):
                     from ..utils.filesystem import load_json_file, save_json_file
+
                     metadata = load_json_file(metadata_path)
 
                     # Update the metadata with nostrmedia URL
-                    metadata['platforms'] = metadata.get('platforms', {})
-                    metadata['platforms']['nostrmedia'] = {
-                        'url': result.get('url'),
-                        'uploaded_at': datetime.now().isoformat()
+                    metadata["platforms"] = metadata.get("platforms", {})
+                    metadata["platforms"]["nostrmedia"] = {
+                        "url": result.get("url"),
+                        "uploaded_at": datetime.now().isoformat(),
                     }
                     save_json_file(metadata_path, metadata)
             else:
-                error_msg = result.get('error') if result else 'Unknown error'
-                logger.error(f"Failed to upload video {video_id} to nostrmedia: {error_msg}")
+                error_msg = result.get("error") if result else "Unknown error"
+                logger.error(
+                    f"Failed to upload video {video_id} to nostrmedia: {error_msg}"
+                )
 
             # Update next run time
-            job = self.scheduler.get_job('regular_nostrmedia')
+            job = self.scheduler.get_job("regular_nostrmedia")
             if job and job.next_run_time:
-                self.jobs['regular_nostrmedia']['next_run'] = job.next_run_time.isoformat()
+                self.jobs["regular_nostrmedia"][
+                    "next_run"
+                ] = job.next_run_time.isoformat()
 
         except Exception as e:
             logger.error(f"Error executing regular nostrmedia upload job: {str(e)}")
@@ -611,8 +649,10 @@ class SchedulerService:
 
         logger.info("Scheduled jobs:")
         for job_id, job_info in self.jobs.items():
-            next_run = job_info.get('next_run', 'Not scheduled')
-            logger.info(f"  - {job_id}: {job_info['description']} (Next run: {next_run})")
+            next_run = job_info.get("next_run", "Not scheduled")
+            logger.info(
+                f"  - {job_id}: {job_info['description']} (Next run: {next_run})"
+            )
 
     def get_all_jobs(self) -> List[Dict[str, Any]]:
         """
@@ -625,7 +665,7 @@ class SchedulerService:
         for job_id in self.jobs:
             job = self.scheduler.get_job(job_id)
             if job and job.next_run_time:
-                self.jobs[job_id]['next_run'] = job.next_run_time.isoformat()
+                self.jobs[job_id]["next_run"] = job.next_run_time.isoformat()
 
         return list(self.jobs.values())
 
@@ -643,7 +683,7 @@ class SchedulerService:
         if job_id in self.jobs:
             job = self.scheduler.get_job(job_id)
             if job and job.next_run_time:
-                self.jobs[job_id]['next_run'] = job.next_run_time.isoformat()
+                self.jobs[job_id]["next_run"] = job.next_run_time.isoformat()
 
         return self.jobs.get(job_id)
 
@@ -671,23 +711,23 @@ class SchedulerService:
                 self.scheduler.resume_job(job_id)
             else:
                 # Re-add the job if it doesn't exist
-                cron_expression = job_info['schedule']
-                command = job_info['command']
+                cron_expression = job_info["schedule"]
+                command = job_info["command"]
 
                 # Determine which function to call based on the command
-                if command == 'sync':
-                    if 'force-refresh' in job_info['args']:
+                if command == "sync":
+                    if "force-refresh" in job_info["args"]:
                         func = self._run_sync_job
                     else:
                         func = self._run_regular_sync_job
-                elif command == 'download':
-                    if '--oldest' in job_info['args']:
+                elif command == "download":
+                    if "--oldest" in job_info["args"]:
                         func = self._run_download_job
                     else:
                         func = self._run_regular_download_job
-                elif command == 'nostr':
+                elif command == "nostr":
                     func = self._run_nostr_job
-                elif command == 'nostrmedia':
+                elif command == "nostrmedia":
                     func = self._run_regular_nostrmedia_job
                 else:
                     logger.error(f"Unknown command: {command}")
@@ -698,13 +738,13 @@ class SchedulerService:
                     func,
                     trigger=CronTrigger.from_crontab(cron_expression),
                     id=job_id,
-                    replace_existing=True
+                    replace_existing=True,
                 )
 
             # Update the job info
-            self.jobs[job_id]['enabled'] = True
+            self.jobs[job_id]["enabled"] = True
             if job and job.next_run_time:
-                self.jobs[job_id]['next_run'] = job.next_run_time.isoformat()
+                self.jobs[job_id]["next_run"] = job.next_run_time.isoformat()
 
             logger.info(f"Enabled job {job_id}")
             return True
@@ -731,7 +771,7 @@ class SchedulerService:
             self.scheduler.pause_job(job_id)
 
             # Update the job info
-            self.jobs[job_id]['enabled'] = False
+            self.jobs[job_id]["enabled"] = False
 
             logger.info(f"Disabled job {job_id}")
             return True

@@ -2,12 +2,15 @@
 Base module for command-related functionality
 """
 
-from ...utils.config import get_default_output_dir, get_default_video_quality, get_default_download_delay
+from ...utils.config import (
+    get_default_download_delay,
+    get_default_output_dir,
+    get_default_video_quality,
+)
 
 # Dictionary mapping channel IDs to their titles
-CHANNEL_MAPPING = {
-    "UCxSRxq14XIoMbFDEjMOPU5Q": "Einundzwanzig"
-}
+CHANNEL_MAPPING = {"UCxSRxq14XIoMbFDEjMOPU5Q": "Einundzwanzig"}
+
 
 def get_channel_title():
     """

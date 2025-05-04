@@ -3,11 +3,11 @@ Nostrmedia platform functionality for nosvid
 """
 
 import os
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from ..utils.filesystem import get_platform_dir, load_json_file, save_json_file
 from ..nostrmedia.upload import upload_to_nostrmedia
+from ..utils.filesystem import get_platform_dir, load_json_file, save_json_file
 
 
 def get_nostrmedia_metadata(video_dir: str) -> Dict[str, Any]:
@@ -21,13 +21,13 @@ def get_nostrmedia_metadata(video_dir: str) -> Dict[str, Any]:
         Nostrmedia metadata dictionary
     """
     # Get the Nostrmedia platform directory
-    nostrmedia_dir = get_platform_dir(video_dir, 'nostrmedia')
+    nostrmedia_dir = get_platform_dir(video_dir, "nostrmedia")
 
     # Load Nostrmedia-specific metadata
-    nostrmedia_metadata_file = os.path.join(nostrmedia_dir, 'metadata.json')
+    nostrmedia_metadata_file = os.path.join(nostrmedia_dir, "metadata.json")
     if os.path.exists(nostrmedia_metadata_file):
         return load_json_file(nostrmedia_metadata_file)
-    
+
     return {}
 
 
@@ -40,14 +40,16 @@ def update_nostrmedia_metadata(video_dir: str, metadata: Dict[str, Any]) -> None
         metadata: Nostrmedia metadata dictionary
     """
     # Get the Nostrmedia platform directory
-    nostrmedia_dir = get_platform_dir(video_dir, 'nostrmedia')
+    nostrmedia_dir = get_platform_dir(video_dir, "nostrmedia")
 
     # Save Nostrmedia-specific metadata
-    nostrmedia_metadata_file = os.path.join(nostrmedia_dir, 'metadata.json')
+    nostrmedia_metadata_file = os.path.join(nostrmedia_dir, "metadata.json")
     save_json_file(nostrmedia_metadata_file, metadata)
 
 
-def upload_video_to_nostrmedia(video_file: str, private_key: Optional[str] = None, debug: bool = False) -> Dict[str, Any]:
+def upload_video_to_nostrmedia(
+    video_file: str, private_key: Optional[str] = None, debug: bool = False
+) -> Dict[str, Any]:
     """
     Upload a video to Nostrmedia
 
@@ -61,9 +63,9 @@ def upload_video_to_nostrmedia(video_file: str, private_key: Optional[str] = Non
     """
     # Upload the video to Nostrmedia
     result = upload_to_nostrmedia(video_file, private_key, debug=debug)
-    
+
     # Add timestamp to the result
-    if 'uploaded_at' not in result:
-        result['uploaded_at'] = datetime.now().isoformat()
-    
+    if "uploaded_at" not in result:
+        result["uploaded_at"] = datetime.now().isoformat()
+
     return result

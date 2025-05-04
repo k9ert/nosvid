@@ -4,6 +4,7 @@ Web interface for nosvid
 
 from .app import run
 
+
 def run_web_app(port=2121, with_cronjobs=False):
     """
     Run the web application

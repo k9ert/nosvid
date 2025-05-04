@@ -6,16 +6,17 @@ import os
 import subprocess
 from datetime import datetime
 
+from ..utils.config import get_youtube_cookies_file
 from ..utils.filesystem import (
+    create_safe_filename,
+    get_platform_dir,
+    get_video_dir,
     load_json_file,
     save_json_file,
-    get_video_dir,
-    get_platform_dir,
-    create_safe_filename
 )
-from ..utils.config import get_youtube_cookies_file
 
-def download_video(video_id, videos_dir, quality='best'):
+
+def download_video(video_id, videos_dir, quality="best"):
     """
     Download a video using yt-dlp
 
@@ -35,7 +36,7 @@ def download_video(video_id, videos_dir, quality='best'):
         return False
 
     # Load main metadata
-    main_metadata_file = os.path.join(video_dir, 'metadata.json')
+    main_metadata_file = os.path.join(video_dir, "metadata.json")
 
     if not os.path.exists(main_metadata_file):
         print(f"Error: Main metadata file not found for ID {video_id}")
@@ -44,26 +45,24 @@ def download_video(video_id, videos_dir, quality='best'):
     main_metadata = load_json_file(main_metadata_file)
 
     # Check if YouTube platform exists in metadata
-    if 'platforms' not in main_metadata or 'youtube' not in main_metadata['platforms']:
+    if "platforms" not in main_metadata or "youtube" not in main_metadata["platforms"]:
         print(f"Error: YouTube platform not found in metadata for ID {video_id}")
         return False
 
     # Get YouTube platform data
-    youtube_platform = main_metadata['platforms']['youtube']
-    video_url = youtube_platform['url']
-    title = main_metadata['title']
+    youtube_platform = main_metadata["platforms"]["youtube"]
+    video_url = youtube_platform["url"]
+    title = main_metadata["title"]
 
     # Create platform-specific directory for YouTube
-    youtube_dir = get_platform_dir(video_dir, 'youtube')
+    youtube_dir = get_platform_dir(video_dir, "youtube")
 
     # Load YouTube-specific metadata
-    youtube_metadata_file = os.path.join(youtube_dir, 'metadata.json')
-    youtube_metadata = load_json_file(youtube_metadata_file, {
-        'title': title,
-        'video_id': video_id,
-        'url': video_url,
-        'downloaded': False
-    })
+    youtube_metadata_file = os.path.join(youtube_dir, "metadata.json")
+    youtube_metadata = load_json_file(
+        youtube_metadata_file,
+        {"title": title, "video_id": video_id, "url": video_url, "downloaded": False},
+    )
 
     # Create a safe filename from the title
     safe_title = create_safe_filename(title)
@@ -73,21 +72,23 @@ def download_video(video_id, videos_dir, quality='best'):
 
     # Prepare yt-dlp command
     cmd = [
-        'yt-dlp',
-        '--format', quality,
-        '--embed-subs',
-        '--embed-metadata',
-        '--embed-thumbnail',
-        '--no-overwrites',
-        '--continue',
-        '-o', output_template
+        "yt-dlp",
+        "--format",
+        quality,
+        "--embed-subs",
+        "--embed-metadata",
+        "--embed-thumbnail",
+        "--no-overwrites",
+        "--continue",
+        "-o",
+        output_template,
     ]
 
     # Add cookies file if configured
     cookies_file = get_youtube_cookies_file()
     if cookies_file and os.path.exists(cookies_file):
         print(f"Using cookies file: {cookies_file}")
-        cmd.extend(['--cookies', cookies_file])
+        cmd.extend(["--cookies", cookies_file])
 
     # Add the video URL
     cmd.append(video_url)
@@ -100,13 +101,15 @@ def download_video(video_id, videos_dir, quality='best'):
             print(f"Successfully downloaded: {title}")
 
             # Update YouTube-specific metadata to mark as downloaded
-            youtube_metadata['downloaded'] = True
-            youtube_metadata['downloaded_at'] = datetime.now().isoformat()
+            youtube_metadata["downloaded"] = True
+            youtube_metadata["downloaded_at"] = datetime.now().isoformat()
             save_json_file(youtube_metadata_file, youtube_metadata)
 
             # Update main metadata to mark YouTube as downloaded
-            main_metadata['platforms']['youtube']['downloaded'] = True
-            main_metadata['platforms']['youtube']['downloaded_at'] = datetime.now().isoformat()
+            main_metadata["platforms"]["youtube"]["downloaded"] = True
+            main_metadata["platforms"]["youtube"][
+                "downloaded_at"
+            ] = datetime.now().isoformat()
             save_json_file(main_metadata_file, main_metadata)
 
             return True
@@ -117,7 +120,8 @@ def download_video(video_id, videos_dir, quality='best'):
         print(f"Exception while downloading {title}: {str(e)}")
         return False
 
-def download_all_pending(videos_dir, quality='best', delay=5):
+
+def download_all_pending(videos_dir, quality="best", delay=5):
     """
     Download all videos that have not been downloaded yet
 
@@ -129,18 +133,15 @@ def download_all_pending(videos_dir, quality='best', delay=5):
     Returns:
         Dictionary with download results
     """
-    from ..metadata.list import list_videos
     import time
+
+    from ..metadata.list import list_videos
 
     videos, _ = list_videos(videos_dir, show_downloaded=False, show_not_downloaded=True)
 
     if not videos:
         print("No videos to download.")
-        return {
-            'total': 0,
-            'successful': 0,
-            'failed': 0
-        }
+        return {"total": 0, "successful": 0, "failed": 0}
 
     print(f"\nDownloading {len(videos)} videos...")
 
@@ -148,7 +149,7 @@ def download_all_pending(videos_dir, quality='best', delay=5):
     failed = 0
 
     for i, video in enumerate(videos, 1):
-        video_id = video['video_id']
+        video_id = video["video_id"]
         print(f"\nDownloading video {i}/{len(videos)}: {video['title']}")
 
         success = download_video(video_id, videos_dir, quality=quality)
@@ -169,8 +170,4 @@ def download_all_pending(videos_dir, quality='best', delay=5):
     print(f"Successfully downloaded: {successful}")
     print(f"Failed: {failed}")
 
-    return {
-        'total': len(videos),
-        'successful': successful,
-        'failed': failed
-    }
+    return {"total": len(videos), "successful": successful, "failed": failed}

@@ -5,10 +5,10 @@ Video Operations for DecData - Video-specific operations
 This module provides video-specific operations for the DecData project.
 """
 
+import hashlib
 import json
 import time
-import hashlib
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 
 class VideoOperations:
@@ -64,6 +64,7 @@ class VideoOperations:
                 if target_node:
                     # Request video info
                     from .message_handlers import request_video_info
+
                     request_video_info(self.node, target_node, video_id)
 
                     # Wait for response (in a real application, this would be handled asynchronously)
@@ -83,13 +84,15 @@ class VideoOperations:
         Returns:
             Search ID for tracking results
         """
-        search_id = hashlib.md5(f"{time.time()}-{query}-{video_id}".encode()).hexdigest()
+        search_id = hashlib.md5(
+            f"{time.time()}-{query}-{video_id}".encode()
+        ).hexdigest()
 
         search_message = {
-            'type': 'search',
-            'search_id': search_id,
-            'query': query,
-            'video_id': video_id
+            "type": "search",
+            "search_id": search_id,
+            "query": query,
+            "video_id": video_id,
         }
 
         # Send search message to all connected nodes
@@ -99,7 +102,9 @@ class VideoOperations:
         for node in self.node.nodes_inbound:
             self.node.send_to_node(node, json.dumps(search_message))
 
-        print(f"Sent search request to {len(self.node.nodes_outbound) + len(self.node.nodes_inbound)} nodes")
+        print(
+            f"Sent search request to {len(self.node.nodes_outbound) + len(self.node.nodes_inbound)} nodes"
+        )
         return search_id
 
     def download_video(self, video_id, node_id=None):
@@ -125,7 +130,9 @@ class VideoOperations:
                 success = self.node.nosvid_api.download_video(video_id)
 
                 if success:
-                    print(f"Successfully requested download of video {video_id} from NosVid API")
+                    print(
+                        f"Successfully requested download of video {video_id} from NosVid API"
+                    )
                     # The video will be added to the catalog during the next sync
                     return None
             except Exception as e:
@@ -135,9 +142,9 @@ class VideoOperations:
         request_id = hashlib.md5(f"{time.time()}-{video_id}".encode()).hexdigest()
 
         download_message = {
-            'type': 'download_request',
-            'request_id': request_id,
-            'video_id': video_id
+            "type": "download_request",
+            "request_id": request_id,
+            "video_id": video_id,
         }
 
         # Find node that has the video
@@ -181,10 +188,10 @@ class VideoOperations:
 
         # Track active transfer
         self.node.active_transfers[request_id] = {
-            'video_id': video_id,
-            'node_id': target_node.id,
-            'start_time': time.time(),
-            'status': 'requested'
+            "video_id": video_id,
+            "node_id": target_node.id,
+            "start_time": time.time(),
+            "status": "requested",
         }
 
         return request_id

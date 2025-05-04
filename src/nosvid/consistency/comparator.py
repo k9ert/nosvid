@@ -3,7 +3,7 @@ Metadata comparison utilities for consistency checking
 """
 
 from datetime import datetime
-from typing import Dict, Any, List, Set
+from typing import Any, Dict, List, Set
 
 from .normalizer import normalize_date
 
@@ -25,18 +25,16 @@ def compare_metadata(existing: Dict[str, Any], fresh: Dict[str, Any]) -> List[st
     differences.extend(_compare_basic_fields(existing, fresh))
 
     # Check platforms
-    if 'platforms' in fresh:
+    if "platforms" in fresh:
         platform_differences = _compare_platforms(
-            existing.get('platforms', {}),
-            fresh.get('platforms', {})
+            existing.get("platforms", {}), fresh.get("platforms", {})
         )
         differences.extend(platform_differences)
 
     # Check npubs
-    if 'npubs' in fresh:
+    if "npubs" in fresh:
         npub_differences = _compare_npubs(
-            existing.get('npubs', {}),
-            fresh.get('npubs', {})
+            existing.get("npubs", {}), fresh.get("npubs", {})
         )
         differences.extend(npub_differences)
 
@@ -57,18 +55,20 @@ def _compare_basic_fields(existing: Dict[str, Any], fresh: Dict[str, Any]) -> Li
     differences = []
 
     # Check simple fields
-    for field in ['title', 'video_id', 'duration']:
-        if field in fresh and (field not in existing or existing[field] != fresh[field]):
+    for field in ["title", "video_id", "duration"]:
+        if field in fresh and (
+            field not in existing or existing[field] != fresh[field]
+        ):
             differences.append(f"Different {field}")
 
     # Special handling for published_at to normalize date formats
-    if 'published_at' in fresh:
-        if 'published_at' not in existing:
+    if "published_at" in fresh:
+        if "published_at" not in existing:
             differences.append("Missing published_at")
         else:
             # Normalize both dates for comparison
-            normalized_existing = normalize_date(existing['published_at'])
-            normalized_fresh = normalize_date(fresh['published_at'])
+            normalized_existing = normalize_date(existing["published_at"])
+            normalized_fresh = normalize_date(fresh["published_at"])
 
             if normalized_existing != normalized_fresh:
                 # Only consider it different if the normalized dates don't match
@@ -77,7 +77,9 @@ def _compare_basic_fields(existing: Dict[str, Any], fresh: Dict[str, Any]) -> Li
     return differences
 
 
-def _compare_platforms(existing_platforms: Dict[str, Any], fresh_platforms: Dict[str, Any]) -> List[str]:
+def _compare_platforms(
+    existing_platforms: Dict[str, Any], fresh_platforms: Dict[str, Any]
+) -> List[str]:
     """
     Compare platform-specific metadata
 
@@ -95,25 +97,26 @@ def _compare_platforms(existing_platforms: Dict[str, Any], fresh_platforms: Dict
         return differences
 
     # Check YouTube platform
-    if 'youtube' in fresh_platforms:
+    if "youtube" in fresh_platforms:
         youtube_differences = _compare_youtube_platform(
-            existing_platforms.get('youtube', {}),
-            fresh_platforms.get('youtube', {})
+            existing_platforms.get("youtube", {}), fresh_platforms.get("youtube", {})
         )
         differences.extend(youtube_differences)
 
     # Check nostrmedia platform
-    if 'nostrmedia' in fresh_platforms:
+    if "nostrmedia" in fresh_platforms:
         nostrmedia_differences = _compare_nostrmedia_platform(
-            existing_platforms.get('nostrmedia', {}),
-            fresh_platforms.get('nostrmedia', {})
+            existing_platforms.get("nostrmedia", {}),
+            fresh_platforms.get("nostrmedia", {}),
         )
         differences.extend(nostrmedia_differences)
 
     return differences
 
 
-def _compare_youtube_platform(existing_youtube: Dict[str, Any], fresh_youtube: Dict[str, Any]) -> List[str]:
+def _compare_youtube_platform(
+    existing_youtube: Dict[str, Any], fresh_youtube: Dict[str, Any]
+) -> List[str]:
     """
     Compare YouTube platform metadata
 
@@ -131,21 +134,24 @@ def _compare_youtube_platform(existing_youtube: Dict[str, Any], fresh_youtube: D
         return differences
 
     # Check YouTube URL
-    if 'url' in fresh_youtube and (
-            'url' not in existing_youtube or
-            existing_youtube['url'] != fresh_youtube['url']):
+    if "url" in fresh_youtube and (
+        "url" not in existing_youtube or existing_youtube["url"] != fresh_youtube["url"]
+    ):
         differences.append("Different YouTube URL")
 
     # Check YouTube download status
-    if 'downloaded' in fresh_youtube and (
-            'downloaded' not in existing_youtube or
-            existing_youtube['downloaded'] != fresh_youtube['downloaded']):
+    if "downloaded" in fresh_youtube and (
+        "downloaded" not in existing_youtube
+        or existing_youtube["downloaded"] != fresh_youtube["downloaded"]
+    ):
         differences.append("Different YouTube download status")
 
     return differences
 
 
-def _compare_nostrmedia_platform(existing_nostrmedia: Dict[str, Any], fresh_nostrmedia: Dict[str, Any]) -> List[str]:
+def _compare_nostrmedia_platform(
+    existing_nostrmedia: Dict[str, Any], fresh_nostrmedia: Dict[str, Any]
+) -> List[str]:
     """
     Compare nostrmedia platform metadata
 
@@ -163,15 +169,18 @@ def _compare_nostrmedia_platform(existing_nostrmedia: Dict[str, Any], fresh_nost
         return differences
 
     # Check nostrmedia URL
-    if 'url' in fresh_nostrmedia and (
-            'url' not in existing_nostrmedia or
-            existing_nostrmedia['url'] != fresh_nostrmedia['url']):
+    if "url" in fresh_nostrmedia and (
+        "url" not in existing_nostrmedia
+        or existing_nostrmedia["url"] != fresh_nostrmedia["url"]
+    ):
         differences.append("Different nostrmedia URL")
 
     return differences
 
 
-def _compare_npubs(existing_npubs: Dict[str, List[str]], fresh_npubs: Dict[str, List[str]]) -> List[str]:
+def _compare_npubs(
+    existing_npubs: Dict[str, List[str]], fresh_npubs: Dict[str, List[str]]
+) -> List[str]:
     """
     Compare npubs metadata
 
@@ -190,17 +199,17 @@ def _compare_npubs(existing_npubs: Dict[str, List[str]], fresh_npubs: Dict[str, 
         return differences
 
     # Check chat npubs
-    if 'chat' in fresh_npubs:
-        if 'chat' not in existing_npubs:
+    if "chat" in fresh_npubs:
+        if "chat" not in existing_npubs:
             differences.append("Missing chat npubs")
-        elif set(fresh_npubs['chat']) != set(existing_npubs['chat']):
+        elif set(fresh_npubs["chat"]) != set(existing_npubs["chat"]):
             differences.append("Different chat npubs")
 
     # Check description npubs
-    if 'description' in fresh_npubs:
-        if 'description' not in existing_npubs:
+    if "description" in fresh_npubs:
+        if "description" not in existing_npubs:
             differences.append("Missing description npubs")
-        elif set(fresh_npubs['description']) != set(existing_npubs['description']):
+        elif set(fresh_npubs["description"]) != set(existing_npubs["description"]):
             differences.append("Different description npubs")
 
     return differences

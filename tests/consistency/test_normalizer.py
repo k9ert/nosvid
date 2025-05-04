@@ -69,68 +69,42 @@ class TestNormalizer(unittest.TestCase):
 
     def test_normalize_metadata_dates_published_at(self):
         """Test normalizing published_at in metadata"""
-        metadata = {
-            'title': 'Test Video',
-            'published_at': '2023-01-01'
-        }
-        expected = {
-            'title': 'Test Video',
-            'published_at': '2023-01-01T00:00:00Z'
-        }
+        metadata = {"title": "Test Video", "published_at": "2023-01-01"}
+        expected = {"title": "Test Video", "published_at": "2023-01-01T00:00:00Z"}
         self.assertEqual(normalize_metadata_dates(metadata), expected)
 
     def test_normalize_metadata_dates_platforms(self):
         """Test normalizing dates in platforms section"""
         metadata = {
-            'title': 'Test Video',
-            'published_at': '2023-01-01',
-            'platforms': {
-                'youtube': {
-                    'downloaded_at': '2023-02-01'
-                },
-                'nostrmedia': {
-                    'uploaded_at': '2023-03-01'
-                },
-                'nostr': {
-                    'posts': [
-                        {
-                            'event_id': 'event1',
-                            'uploaded_at': '2023-04-01'
-                        },
-                        {
-                            'event_id': 'event2',
-                            'uploaded_at': '2023-05-01'
-                        }
+            "title": "Test Video",
+            "published_at": "2023-01-01",
+            "platforms": {
+                "youtube": {"downloaded_at": "2023-02-01"},
+                "nostrmedia": {"uploaded_at": "2023-03-01"},
+                "nostr": {
+                    "posts": [
+                        {"event_id": "event1", "uploaded_at": "2023-04-01"},
+                        {"event_id": "event2", "uploaded_at": "2023-05-01"},
                     ]
-                }
-            }
+                },
+            },
         }
         expected = {
-            'title': 'Test Video',
-            'published_at': '2023-01-01T00:00:00Z',
-            'platforms': {
-                'youtube': {
-                    'downloaded_at': '2023-02-01T00:00:00Z'
-                },
-                'nostrmedia': {
-                    'uploaded_at': '2023-03-01T00:00:00Z'
-                },
-                'nostr': {
-                    'posts': [
-                        {
-                            'event_id': 'event1',
-                            'uploaded_at': '2023-04-01T00:00:00Z'
-                        },
-                        {
-                            'event_id': 'event2',
-                            'uploaded_at': '2023-05-01T00:00:00Z'
-                        }
+            "title": "Test Video",
+            "published_at": "2023-01-01T00:00:00Z",
+            "platforms": {
+                "youtube": {"downloaded_at": "2023-02-01T00:00:00Z"},
+                "nostrmedia": {"uploaded_at": "2023-03-01T00:00:00Z"},
+                "nostr": {
+                    "posts": [
+                        {"event_id": "event1", "uploaded_at": "2023-04-01T00:00:00Z"},
+                        {"event_id": "event2", "uploaded_at": "2023-05-01T00:00:00Z"},
                     ]
-                }
-            }
+                },
+            },
         }
         self.assertEqual(normalize_metadata_dates(metadata), expected)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

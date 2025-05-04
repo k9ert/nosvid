@@ -4,9 +4,9 @@ Dependency injection for nosvid API
 
 from fastapi import Depends
 
+from ..repo.video_repo import FileSystemVideoRepo
 from ..services.config_service import ConfigService
 from ..services.video_service import VideoService
-from ..repo.video_repo import FileSystemVideoRepo
 
 
 def get_config_service():
@@ -20,7 +20,9 @@ def get_video_repository(config_service: ConfigService = Depends(get_config_serv
     return FileSystemVideoRepo(output_dir)
 
 
-def get_video_service(video_repository: FileSystemVideoRepo = Depends(get_video_repository)):
+def get_video_service(
+    video_repository: FileSystemVideoRepo = Depends(get_video_repository),
+):
     """Get the video service"""
     return VideoService(video_repository)
 

@@ -2,17 +2,19 @@
 HeyGen platform functionality for nosvid
 """
 
+import json
 import os
 import time
-import requests
-import json
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from ..utils.filesystem import get_platform_dir, load_json_file, save_json_file
+import requests
+
 from ..utils.config import read_api_key_from_yaml
+from ..utils.filesystem import get_platform_dir, load_json_file, save_json_file
 
-def get_heygen_metadata(video_dir: str, quality: str = 'scale') -> Dict[str, Any]:
+
+def get_heygen_metadata(video_dir: str, quality: str = "scale") -> Dict[str, Any]:
     """
     Get HeyGen metadata for a video
 
@@ -24,21 +26,23 @@ def get_heygen_metadata(video_dir: str, quality: str = 'scale') -> Dict[str, Any
         HeyGen metadata dictionary
     """
     # Get the HeyGen platform directory
-    heygen_dir = get_platform_dir(video_dir, 'heygen')
+    heygen_dir = get_platform_dir(video_dir, "heygen")
 
     # Create quality-specific directory
     quality_dir = os.path.join(heygen_dir, quality)
     os.makedirs(quality_dir, exist_ok=True)
 
     # Load HeyGen-specific metadata
-    heygen_metadata_file = os.path.join(quality_dir, 'metadata.json')
+    heygen_metadata_file = os.path.join(quality_dir, "metadata.json")
     if os.path.exists(heygen_metadata_file):
         return load_json_file(heygen_metadata_file)
 
     return {}
 
 
-def update_heygen_metadata(video_dir: str, metadata: Dict[str, Any], quality: str = 'scale') -> None:
+def update_heygen_metadata(
+    video_dir: str, metadata: Dict[str, Any], quality: str = "scale"
+) -> None:
     """
     Update HeyGen metadata for a video
 
@@ -48,14 +52,14 @@ def update_heygen_metadata(video_dir: str, metadata: Dict[str, Any], quality: st
         quality: Quality level of the translation ('free', 'pro', 'scale')
     """
     # Get the HeyGen platform directory
-    heygen_dir = get_platform_dir(video_dir, 'heygen')
+    heygen_dir = get_platform_dir(video_dir, "heygen")
 
     # Create quality-specific directory
     quality_dir = os.path.join(heygen_dir, quality)
     os.makedirs(quality_dir, exist_ok=True)
 
     # Save HeyGen-specific metadata
-    heygen_metadata_file = os.path.join(quality_dir, 'metadata.json')
+    heygen_metadata_file = os.path.join(quality_dir, "metadata.json")
     save_json_file(heygen_metadata_file, metadata)
 
 
@@ -70,10 +74,7 @@ def list_supported_languages(api_key: str) -> List[str]:
         List of supported languages
     """
     url = "https://api.heygen.com/v2/video_translate/target_languages"
-    headers = {
-        "accept": "application/json",
-        "x-api-key": api_key
-    }
+    headers = {"accept": "application/json", "x-api-key": api_key}
 
     try:
         response = requests.get(url, headers=headers)
@@ -81,16 +82,51 @@ def list_supported_languages(api_key: str) -> List[str]:
         # Check for 403 Forbidden specifically
         if response.status_code == 403:
             print("Error: Access to Video Translation API is forbidden.")
-            print("The Video Translation API is only available on Scale ($330/month) and Enterprise plans.")
+            print(
+                "The Video Translation API is only available on Scale ($330/month) and Enterprise plans."
+            )
             print("You are currently on the Free or Pro plan.")
             print("\nAvailable languages for reference:")
             return [
-                "English", "Spanish", "French", "German", "Italian", "Portuguese", "Dutch",
-                "Russian", "Japanese", "Korean", "Chinese", "Arabic", "Hindi", "Turkish",
-                "Polish", "Swedish", "Norwegian", "Danish", "Finnish", "Greek", "Czech",
-                "Hungarian", "Romanian", "Bulgarian", "Croatian", "Serbian", "Slovak",
-                "Slovenian", "Ukrainian", "Hebrew", "Thai", "Vietnamese", "Indonesian",
-                "Malay", "Filipino", "Bengali", "Urdu", "Persian", "Swahili"
+                "English",
+                "Spanish",
+                "French",
+                "German",
+                "Italian",
+                "Portuguese",
+                "Dutch",
+                "Russian",
+                "Japanese",
+                "Korean",
+                "Chinese",
+                "Arabic",
+                "Hindi",
+                "Turkish",
+                "Polish",
+                "Swedish",
+                "Norwegian",
+                "Danish",
+                "Finnish",
+                "Greek",
+                "Czech",
+                "Hungarian",
+                "Romanian",
+                "Bulgarian",
+                "Croatian",
+                "Serbian",
+                "Slovak",
+                "Slovenian",
+                "Ukrainian",
+                "Hebrew",
+                "Thai",
+                "Vietnamese",
+                "Indonesian",
+                "Malay",
+                "Filipino",
+                "Bengali",
+                "Urdu",
+                "Persian",
+                "Swahili",
             ]
 
         response.raise_for_status()
@@ -107,11 +143,7 @@ def list_supported_languages(api_key: str) -> List[str]:
 
 
 def translate_video(
-    video_url: str,
-    output_language: str,
-    title: str,
-    api_key: str,
-    debug: bool = False
+    video_url: str, output_language: str, title: str, api_key: str, debug: bool = False
 ) -> Dict[str, Any]:
     """
     Translate a video using HeyGen
@@ -130,12 +162,12 @@ def translate_video(
     headers = {
         "accept": "application/json",
         "x-api-key": api_key,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     payload = {
         "video_url": video_url,
         "output_language": output_language,
-        "title": title
+        "title": title,
     }
 
     if debug:
@@ -147,13 +179,15 @@ def translate_video(
         # Check for 403 Forbidden specifically
         if response.status_code == 403:
             print("Error: Access to Video Translation API is forbidden.")
-            print("The Video Translation API is only available on Scale ($330/month) and Enterprise plans.")
+            print(
+                "The Video Translation API is only available on Scale ($330/month) and Enterprise plans."
+            )
             print("You are currently on the Free or Pro plan.")
             print("Please upgrade your plan to use this feature.")
             return {
                 "success": False,
                 "error": "Access to Video Translation API is forbidden",
-                "message": "The Video Translation API is only available on Scale and Enterprise plans"
+                "message": "The Video Translation API is only available on Scale and Enterprise plans",
             }
 
         response.raise_for_status()
@@ -163,7 +197,7 @@ def translate_video(
             return {
                 "success": False,
                 "error": data["error"],
-                "message": "Failed to start translation"
+                "message": "Failed to start translation",
             }
 
         result = {
@@ -172,7 +206,7 @@ def translate_video(
             "requested_at": datetime.now().isoformat(),
             "output_language": output_language,
             "title": title,
-            "status": "pending"
+            "status": "pending",
         }
 
         if debug:
@@ -187,14 +221,12 @@ def translate_video(
         return {
             "success": False,
             "error": error_message,
-            "message": "Failed to start translation"
+            "message": "Failed to start translation",
         }
 
 
 def check_translation_status(
-    video_translate_id: str,
-    api_key: str,
-    debug: bool = False
+    video_translate_id: str, api_key: str, debug: bool = False
 ) -> Dict[str, Any]:
     """
     Check the status of a video translation
@@ -208,10 +240,7 @@ def check_translation_status(
         Dictionary with translation status
     """
     url = f"https://api.heygen.com/v2/video_translate/{video_translate_id}"
-    headers = {
-        "accept": "application/json",
-        "x-api-key": api_key
-    }
+    headers = {"accept": "application/json", "x-api-key": api_key}
 
     try:
         response = requests.get(url, headers=headers)
@@ -219,13 +248,15 @@ def check_translation_status(
         # Check for 403 Forbidden specifically
         if response.status_code == 403:
             print("Error: Access to Video Translation API is forbidden.")
-            print("The Video Translation API is only available on Scale ($330/month) and Enterprise plans.")
+            print(
+                "The Video Translation API is only available on Scale ($330/month) and Enterprise plans."
+            )
             print("You are currently on the Free or Pro plan.")
             print("Please upgrade your plan to use this feature.")
             return {
                 "success": False,
                 "error": "Access to Video Translation API is forbidden",
-                "message": "The Video Translation API is only available on Scale and Enterprise plans"
+                "message": "The Video Translation API is only available on Scale and Enterprise plans",
             }
 
         response.raise_for_status()
@@ -235,7 +266,7 @@ def check_translation_status(
             return {
                 "success": False,
                 "error": data["error"],
-                "message": "Failed to check translation status"
+                "message": "Failed to check translation status",
             }
 
         status_data = data["data"]
@@ -244,7 +275,7 @@ def check_translation_status(
             "video_translate_id": status_data["video_translate_id"],
             "title": status_data["title"],
             "status": status_data["status"],
-            "checked_at": datetime.now().isoformat()
+            "checked_at": datetime.now().isoformat(),
         }
 
         if status_data["status"] == "success" and status_data.get("url"):
@@ -265,7 +296,7 @@ def check_translation_status(
         return {
             "success": False,
             "error": error_message,
-            "message": "Failed to check translation status"
+            "message": "Failed to check translation status",
         }
 
 
@@ -274,7 +305,7 @@ def wait_for_translation(
     api_key: str,
     timeout: int = 3600,
     check_interval: int = 30,
-    debug: bool = False
+    debug: bool = False,
 ) -> Dict[str, Any]:
     """
     Wait for a video translation to complete
@@ -304,19 +335,21 @@ def wait_for_translation(
             return {
                 "success": False,
                 "error": status.get("message", "Translation failed"),
-                "status": "failed"
+                "status": "failed",
             }
 
         # Still processing, wait and check again
         if debug:
-            print(f"Translation in progress, status: {status['status']}. Checking again in {check_interval} seconds...")
+            print(
+                f"Translation in progress, status: {status['status']}. Checking again in {check_interval} seconds..."
+            )
 
         time.sleep(check_interval)
 
     return {
         "success": False,
         "error": f"Timeout after {timeout} seconds",
-        "message": "Translation timed out"
+        "message": "Translation timed out",
     }
 
 
@@ -360,11 +393,12 @@ LANGUAGE_TO_ISO = {
     "Bengali": "bn",
     "Urdu": "ur",
     "Persian": "fa",
-    "Swahili": "sw"
+    "Swahili": "sw",
 }
 
 # Reverse mapping from ISO to language name
 ISO_TO_LANGUAGE = {v: k for k, v in LANGUAGE_TO_ISO.items()}
+
 
 def get_iso_code(language: str) -> str:
     """
@@ -383,6 +417,7 @@ def get_iso_code(language: str) -> str:
     # Otherwise, look up the ISO code
     return LANGUAGE_TO_ISO.get(language, language.lower())
 
+
 def get_language_name(iso_code: str) -> str:
     """
     Get language name for an ISO code
@@ -395,11 +430,8 @@ def get_language_name(iso_code: str) -> str:
     """
     return ISO_TO_LANGUAGE.get(iso_code.lower(), iso_code)
 
-def download_translated_video(
-    url: str,
-    output_path: str,
-    debug: bool = False
-) -> bool:
+
+def download_translated_video(url: str, output_path: str, debug: bool = False) -> bool:
     """
     Download a translated video from HeyGen
 
@@ -418,7 +450,7 @@ def download_translated_video(
         response = requests.get(url, stream=True)
         response.raise_for_status()
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 

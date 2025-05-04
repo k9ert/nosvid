@@ -7,14 +7,14 @@ It should be run as a separate service from NosVid.
 It uses a simple deploy key approach for authentication.
 """
 
+import argparse
+import logging
 import os
+import shutil
+import subprocess
 import sys
 import time
-import logging
-import subprocess
-import shutil
 from datetime import datetime
-import argparse
 
 # Configuration
 UPDATE_TRIGGER_FILE = "/tmp/nosvid_update_needed"
@@ -26,13 +26,14 @@ VENV_PATH = os.path.join(NOSVID_DIR, "venv")
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler(os.path.join(NOSVID_DIR, "updater.log")),
-        logging.StreamHandler()
-    ]
+        logging.StreamHandler(),
+    ],
 )
-logger = logging.getLogger('updater')
+logger = logging.getLogger("updater")
+
 
 def stop_decdata():
     """
@@ -46,7 +47,7 @@ def stop_decdata():
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         # Wait a moment to ensure it's stopped
@@ -59,7 +60,7 @@ def stop_decdata():
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         if "inactive" in status_result.stdout:
@@ -71,6 +72,7 @@ def stop_decdata():
     except Exception as e:
         logger.error(f"Error stopping DecData service: {e}")
         return False
+
 
 def start_decdata():
     """
@@ -84,7 +86,7 @@ def start_decdata():
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         # Wait a moment to ensure it's started
@@ -97,7 +99,7 @@ def start_decdata():
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         if "active" in status_result.stdout:
@@ -109,6 +111,7 @@ def start_decdata():
     except Exception as e:
         logger.error(f"Error starting DecData service: {e}")
         return False
+
 
 def create_backup():
     """
@@ -130,13 +133,14 @@ def create_backup():
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
         logger.info("Backup created successfully")
         return True
     except Exception as e:
         logger.error(f"Backup failed: {e}")
         return False
+
 
 def stop_nosvid():
     """
@@ -150,7 +154,7 @@ def stop_nosvid():
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         # Wait a moment to ensure it's stopped
@@ -163,7 +167,7 @@ def stop_nosvid():
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         if "inactive" in status_result.stdout:
@@ -175,6 +179,7 @@ def stop_nosvid():
     except Exception as e:
         logger.error(f"Error stopping NosVid service: {e}")
         return False
+
 
 def start_nosvid():
     """
@@ -188,7 +193,7 @@ def start_nosvid():
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         # Wait a moment to ensure it's started
@@ -201,7 +206,7 @@ def start_nosvid():
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         if "active" in status_result.stdout:
@@ -213,6 +218,7 @@ def start_nosvid():
     except Exception as e:
         logger.error(f"Error starting NosVid service: {e}")
         return False
+
 
 def restart_service(service_name):
     """
@@ -229,7 +235,7 @@ def restart_service(service_name):
         result = subprocess.run(
             ["sudo", "systemctl", "restart", service_name],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         if result.returncode != 0:
@@ -243,6 +249,7 @@ def restart_service(service_name):
         logger.error(f"Error restarting service: {e}")
         return False
 
+
 def process_update():
     """
     Process the update trigger file and update NosVid and DecData
@@ -251,7 +258,7 @@ def process_update():
 
     # Read the trigger file
     try:
-        with open(UPDATE_TRIGGER_FILE, 'r') as f:
+        with open(UPDATE_TRIGGER_FILE, "r") as f:
             trigger_content = f.read()
         logger.info(f"Trigger file content:\n{trigger_content}")
     except Exception as e:
@@ -278,10 +285,7 @@ def process_update():
         # Pull the latest code using the deploy key (which should be configured in the system)
         logger.info("Pulling latest changes")
         result = subprocess.run(
-            ["git", "pull"],
-            cwd=NOSVID_DIR,
-            capture_output=True,
-            text=True
+            ["git", "pull"], cwd=NOSVID_DIR, capture_output=True, text=True
         )
 
         if result.returncode != 0:
@@ -299,7 +303,7 @@ def process_update():
             [f"{VENV_PATH}/bin/pip", "install", "-e", NOSVID_DIR],
             cwd=NOSVID_DIR,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         if result.returncode != 0:
@@ -315,7 +319,7 @@ def process_update():
             [f"{VENV_PATH}/bin/pip", "install", "yt-dlp"],
             cwd=NOSVID_DIR,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Create symlink for yt-dlp if it doesn't exist
@@ -323,9 +327,15 @@ def process_update():
         if not os.path.exists("/usr/local/bin/yt-dlp"):
             logger.info("Creating symlink for yt-dlp")
             subprocess.run(
-                ["sudo", "ln", "-sf", f"{VENV_PATH}/bin/yt-dlp", "/usr/local/bin/yt-dlp"],
+                [
+                    "sudo",
+                    "ln",
+                    "-sf",
+                    f"{VENV_PATH}/bin/yt-dlp",
+                    "/usr/local/bin/yt-dlp",
+                ],
                 capture_output=True,
-                text=True
+                text=True,
             )
     except Exception as e:
         logger.error(f"Error updating repository: {e}")
@@ -350,6 +360,7 @@ def process_update():
     logger.info("Update completed successfully")
     return True
 
+
 def check_for_updates():
     """
     Check if an update is needed
@@ -371,13 +382,18 @@ def check_for_updates():
 
     return False
 
+
 def main():
     """
     Main function
     """
-    parser = argparse.ArgumentParser(description='NosVid Updater')
-    parser.add_argument('--check-interval', type=int, default=CHECK_INTERVAL,
-                        help=f'Check interval in seconds (default: {CHECK_INTERVAL})')
+    parser = argparse.ArgumentParser(description="NosVid Updater")
+    parser.add_argument(
+        "--check-interval",
+        type=int,
+        default=CHECK_INTERVAL,
+        help=f"Check interval in seconds (default: {CHECK_INTERVAL})",
+    )
     args = parser.parse_args()
 
     logger.info("Starting NosVid updater")
@@ -389,6 +405,7 @@ def main():
             logger.error(f"Error checking for updates: {e}")
 
         time.sleep(args.check_interval)
+
 
 if __name__ == "__main__":
     main()

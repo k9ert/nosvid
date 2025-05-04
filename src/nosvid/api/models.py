@@ -2,14 +2,16 @@
 API models for nosvid
 """
 
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
 
 
 # Nostr models
 class NostrPostResponse(BaseModel):
     """Response model for a Nostr post"""
+
     event_id: str
     pubkey: str
     uploaded_at: str
@@ -20,6 +22,7 @@ class NostrPostResponse(BaseModel):
 # Video models
 class VideoResponse(BaseModel):
     """Response model for a video"""
+
     video_id: str
     title: str
     published_at: str
@@ -31,11 +34,13 @@ class VideoResponse(BaseModel):
 
     class Config:
         """Configuration for the model"""
+
         from_attributes = True
 
 
 class VideoListResponse(BaseModel):
     """Response model for a list of videos"""
+
     videos: List[VideoResponse]
     total: int
     offset: int
@@ -44,6 +49,7 @@ class VideoListResponse(BaseModel):
 
 class UpdateMetadataRequest(BaseModel):
     """Request model for updating video metadata"""
+
     title: Optional[str] = None
     published_at: Optional[str] = None
     duration: Optional[int] = None
@@ -56,6 +62,7 @@ class UpdateMetadataRequest(BaseModel):
 # Platform models
 class PlatformResponse(BaseModel):
     """Response model for platform-specific data"""
+
     name: str
     url: Optional[str] = None
     downloaded: Optional[bool] = None
@@ -67,6 +74,7 @@ class PlatformResponse(BaseModel):
 
 class YouTubePlatformData(BaseModel):
     """Model for YouTube platform data"""
+
     metadata: Optional[Dict[str, Any]] = None
     info: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
@@ -82,6 +90,7 @@ class YouTubePlatformData(BaseModel):
 
 class YouTubePlatformRequest(BaseModel):
     """Request model for creating YouTube platform data"""
+
     url: str
     downloaded: bool = True
     downloaded_at: Optional[str] = None
@@ -91,22 +100,26 @@ class YouTubePlatformRequest(BaseModel):
 # Download models
 class DownloadRequest(BaseModel):
     """Request model for downloading a video"""
+
     quality: str = "best"
 
 
 class SyncMetadataRequest(BaseModel):
     """Request model for syncing metadata"""
+
     force_refresh: bool = False
 
 
 class DownloadResponse(BaseModel):
     """Response model for downloading a video"""
+
     success: bool
     message: str
 
 
 class DownloadStatusResponse(BaseModel):
     """Response model for checking download status"""
+
     in_progress: bool
     video_id: Optional[str] = None
     started_at: Optional[str] = None
@@ -116,12 +129,14 @@ class DownloadStatusResponse(BaseModel):
 # Nostrmedia models
 class NostrmediaUploadRequest(BaseModel):
     """Request model for uploading a video to nostrmedia"""
+
     private_key: Optional[str] = None
     debug: bool = False
 
 
 class NostrmediaUrlRequest(BaseModel):
     """Request model for providing an existing nostrmedia URL"""
+
     url: str
     hash: Optional[str] = None
     uploaded_at: Optional[str] = None
@@ -130,6 +145,7 @@ class NostrmediaUrlRequest(BaseModel):
 # Statistics models
 class StatisticsResponse(BaseModel):
     """Response model for statistics"""
+
     total_in_cache: int = 0
     total_with_metadata: int = 0
     total_downloaded: int = 0

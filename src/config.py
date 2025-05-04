@@ -1,5 +1,7 @@
-import yaml
 import os
+
+import yaml
+
 
 def read_api_key_from_yaml(key_name, file_path=None):
     """
@@ -18,7 +20,7 @@ def read_api_key_from_yaml(key_name, file_path=None):
     """
     if file_path is None:
         # Try common locations
-        common_paths = ['secrets.yaml', 'youtube.key']
+        common_paths = ["secrets.yaml", "youtube.key"]
         for path in common_paths:
             if os.path.exists(path):
                 file_path = path
@@ -27,8 +29,8 @@ def read_api_key_from_yaml(key_name, file_path=None):
             raise FileNotFoundError("No API key file found in common locations")
 
     try:
-        with open(file_path, 'r') as f:
-            if file_path.endswith('.yaml'):
+        with open(file_path, "r") as f:
+            if file_path.endswith(".yaml"):
                 data = yaml.safe_load(f)
                 return data[key_name]
             else:

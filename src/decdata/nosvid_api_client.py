@@ -6,11 +6,12 @@ This module provides a client for interacting with the NosVid API.
 It allows the DecData node to query the NosVid API for video information.
 """
 
-import os
-import json
 import hashlib
+import json
+import os
+from typing import Any, Dict, List, Optional, Union
+
 import requests
-from typing import Dict, List, Optional, Any, Union
 
 
 class NosVidAPIClient:
@@ -25,13 +26,15 @@ class NosVidAPIClient:
         Args:
             api_url: URL of the NosVid API
         """
-        self.api_url = api_url.rstrip('/')
+        self.api_url = api_url.rstrip("/")
 
-    def list_videos(self,
-                   limit: Optional[int] = None,
-                   offset: int = 0,
-                   sort_by: str = "published_at",
-                   sort_order: str = "desc") -> Dict[str, Any]:
+    def list_videos(
+        self,
+        limit: Optional[int] = None,
+        offset: int = 0,
+        sort_by: str = "published_at",
+        sort_order: str = "desc",
+    ) -> Dict[str, Any]:
         """
         List videos from the NosVid API.
 
@@ -44,14 +47,10 @@ class NosVidAPIClient:
         Returns:
             Dictionary containing video list and metadata
         """
-        params = {
-            'offset': offset,
-            'sort_by': sort_by,
-            'sort_order': sort_order
-        }
+        params = {"offset": offset, "sort_by": sort_by, "sort_order": sort_order}
 
         if limit is not None:
-            params['limit'] = limit
+            params["limit"] = limit
 
         try:
             response = requests.get(f"{self.api_url}/videos", params=params)
@@ -59,7 +58,7 @@ class NosVidAPIClient:
             return response.json()
         except requests.exceptions.RequestException as e:
             print(f"Error listing videos: {e}")
-            return {'videos': [], 'total': 0, 'offset': offset, 'limit': limit}
+            return {"videos": [], "total": 0, "offset": offset, "limit": limit}
 
     def get_video(self, video_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -96,15 +95,17 @@ class NosVidAPIClient:
         try:
             response = requests.post(
                 f"{self.api_url}/videos/{video_id}/platforms/youtube/download",
-                json={'quality': quality}
+                json={"quality": quality},
             )
             response.raise_for_status()
-            return response.json().get('success', False)
+            return response.json().get("success", False)
         except requests.exceptions.RequestException as e:
             print(f"Error downloading video {video_id}: {e}")
             return False
 
-    def upload_to_nostrmedia(self, video_id: str, private_key: str = None, debug: bool = False) -> bool:
+    def upload_to_nostrmedia(
+        self, video_id: str, private_key: str = None, debug: bool = False
+    ) -> bool:
         """
         Request the NosVid API to upload a video to nostrmedia.com.
 
@@ -119,18 +120,17 @@ class NosVidAPIClient:
         try:
             response = requests.post(
                 f"{self.api_url}/videos/{video_id}/platforms/nostrmedia/upload",
-                json={
-                    'private_key': private_key,
-                    'debug': debug
-                }
+                json={"private_key": private_key, "debug": debug},
             )
             response.raise_for_status()
-            return response.json().get('success', False)
+            return response.json().get("success", False)
         except requests.exceptions.RequestException as e:
             print(f"Error uploading video {video_id} to nostrmedia: {e}")
             return False
 
-    def set_nostrmedia_url(self, video_id: str, url: str, hash_value: str = None, uploaded_at: str = None) -> bool:
+    def set_nostrmedia_url(
+        self, video_id: str, url: str, hash_value: str = None, uploaded_at: str = None
+    ) -> bool:
         """
         Set an existing nostrmedia URL for a video.
 
@@ -146,20 +146,22 @@ class NosVidAPIClient:
         try:
             response = requests.post(
                 f"{self.api_url}/videos/{video_id}/platforms/nostrmedia",
-                json={
-                    'url': url,
-                    'hash': hash_value,
-                    'uploaded_at': uploaded_at
-                }
+                json={"url": url, "hash": hash_value, "uploaded_at": uploaded_at},
             )
             response.raise_for_status()
-            return response.json().get('success', False)
+            return response.json().get("success", False)
         except requests.exceptions.RequestException as e:
             print(f"Error setting nostrmedia URL for video {video_id}: {e}")
             return False
 
-    def create_youtube_platform(self, video_id: str, url: str, data: Dict[str, Any],
-                               downloaded: bool = True, downloaded_at: str = None) -> bool:
+    def create_youtube_platform(
+        self,
+        video_id: str,
+        url: str,
+        data: Dict[str, Any],
+        downloaded: bool = True,
+        downloaded_at: str = None,
+    ) -> bool:
         """
         Create YouTube platform data for a video.
 
@@ -175,18 +177,18 @@ class NosVidAPIClient:
         """
         try:
             platform_data = {
-                'url': url,
-                'downloaded': downloaded,
-                'downloaded_at': downloaded_at,
-                'data': data
+                "url": url,
+                "downloaded": downloaded,
+                "downloaded_at": downloaded_at,
+                "data": data,
             }
 
             response = requests.post(
                 f"{self.api_url}/videos/{video_id}/platforms/youtube",
-                json=platform_data
+                json=platform_data,
             )
             response.raise_for_status()
-            return response.json().get('success', False)
+            return response.json().get("success", False)
         except requests.exceptions.RequestException as e:
             print(f"Error creating YouTube platform data for video {video_id}: {e}")
             return False
@@ -204,11 +206,10 @@ class NosVidAPIClient:
         """
         try:
             response = requests.post(
-                f"{self.api_url}/videos/{video_id}/update-metadata",
-                json=metadata
+                f"{self.api_url}/videos/{video_id}/update-metadata", json=metadata
             )
             response.raise_for_status()
-            return response.json().get('success', False)
+            return response.json().get("success", False)
         except requests.exceptions.RequestException as e:
             print(f"Error updating metadata for video {video_id}: {e}")
             return False
@@ -227,10 +228,10 @@ class NosVidAPIClient:
         except requests.exceptions.RequestException as e:
             print(f"Error getting download status: {e}")
             return {
-                'in_progress': False,
-                'video_id': None,
-                'started_at': None,
-                'user': None
+                "in_progress": False,
+                "video_id": None,
+                "started_at": None,
+                "user": None,
             }
 
     def get_statistics(self) -> Dict[str, Any]:
@@ -247,13 +248,13 @@ class NosVidAPIClient:
         except requests.exceptions.RequestException as e:
             print(f"Error getting statistics: {e}")
             return {
-                'total_in_cache': 0,
-                'total_with_metadata': 0,
-                'total_downloaded': 0,
-                'total_uploaded_nm': 0,
-                'total_posted_nostr': 0,
-                'total_with_npubs': 0,
-                'total_npubs': 0
+                "total_in_cache": 0,
+                "total_with_metadata": 0,
+                "total_downloaded": 0,
+                "total_uploaded_nm": 0,
+                "total_posted_nostr": 0,
+                "total_with_npubs": 0,
+                "total_npubs": 0,
             }
 
     def get_video_file_content(self, video_id: str) -> Optional[Dict[str, Any]]:
@@ -273,10 +274,10 @@ class NosVidAPIClient:
                 print(f"Video {video_id} not found")
                 return None
 
-            platforms = video_info.get('platforms', {})
-            youtube = platforms.get('youtube', {})
+            platforms = video_info.get("platforms", {})
+            youtube = platforms.get("youtube", {})
 
-            if not youtube.get('downloaded', False):
+            if not youtube.get("downloaded", False):
                 print(f"Video {video_id} is not downloaded")
                 return None
 
@@ -296,14 +297,14 @@ class NosVidAPIClient:
             file_size = len(file_data)
 
             return {
-                'video_id': video_id,
-                'file_data': file_data,
-                'file_hash': file_hash,
-                'file_size': file_size,
-                'title': video_info.get('title', ''),
-                'published_at': video_info.get('published_at', ''),
-                'duration': video_info.get('duration', 0),
-                'platforms': platforms
+                "video_id": video_id,
+                "file_data": file_data,
+                "file_hash": file_hash,
+                "file_size": file_size,
+                "title": video_info.get("title", ""),
+                "published_at": video_info.get("published_at", ""),
+                "duration": video_info.get("duration", 0),
+                "platforms": platforms,
             }
 
         except requests.exceptions.RequestException as e:

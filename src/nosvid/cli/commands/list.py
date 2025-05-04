@@ -2,9 +2,10 @@
 List command for nosvid CLI
 """
 
-from .base import get_channel_title, CHANNEL_MAPPING
-from ...utils.filesystem import setup_directory_structure
 from ...metadata.list import list_videos, print_video_list
+from ...utils.filesystem import setup_directory_structure
+from .base import CHANNEL_MAPPING, get_channel_title
+
 
 def list_command(args):
     """
@@ -39,11 +40,11 @@ def list_command(args):
 
         # List the videos
         videos, stats = list_videos(
-            videos_dir=dirs['videos_dir'],
-            metadata_dir=dirs['metadata_dir'],
+            videos_dir=dirs["videos_dir"],
+            metadata_dir=dirs["metadata_dir"],
             channel_id=channel_id,
             show_downloaded=show_downloaded,
-            show_not_downloaded=show_not_downloaded
+            show_not_downloaded=show_not_downloaded,
         )
 
         # Print the videos
@@ -54,6 +55,7 @@ def list_command(args):
         print(f"Error: {str(e)}")
         return 1
 
+
 def register_list_parser(subparsers):
     """
     Register the list command parser
@@ -61,17 +63,12 @@ def register_list_parser(subparsers):
     Args:
         subparsers: Subparsers object from argparse
     """
-    list_parser = subparsers.add_parser(
-        'list',
-        help='List videos in the repository'
+    list_parser = subparsers.add_parser("list", help="List videos in the repository")
+    list_parser.add_argument(
+        "--downloaded", action="store_true", help="Show only downloaded videos"
     )
     list_parser.add_argument(
-        '--downloaded',
-        action='store_true',
-        help='Show only downloaded videos'
-    )
-    list_parser.add_argument(
-        '--not-downloaded',
-        action='store_true',
-        help='Show only videos that have not been downloaded'
+        "--not-downloaded",
+        action="store_true",
+        help="Show only videos that have not been downloaded",
     )

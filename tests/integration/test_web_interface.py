@@ -2,14 +2,16 @@
 Integration test for the web interface
 """
 
-import unittest
-import subprocess
-import time
-import requests
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
-import shutil
+import time
+import unittest
+
+import requests
+
 
 class TestWebInterface(unittest.TestCase):
     """Integration test for the web interface"""
@@ -23,22 +25,30 @@ class TestWebInterface(unittest.TestCase):
         # Create a test config file
         cls.config_file = os.path.join(cls.temp_dir, "config.yaml")
         with open(cls.config_file, "w") as f:
-            f.write("""
+            f.write(
+                """
 defaults:
   output_dir: {}
 channel:
   title: TestChannel
-            """.format(cls.temp_dir))
+            """.format(
+                    cls.temp_dir
+                )
+            )
 
         # Use a different port to avoid conflicts
         cls.port = 8125
 
         # Start the web server in a separate process
         cls.server_process = subprocess.Popen(
-            [sys.executable, "-c", f"from src.nosvid.web.app import run; run(port={cls.port})"],
+            [
+                sys.executable,
+                "-c",
+                f"from src.nosvid.web.app import run; run(port={cls.port})",
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env={**os.environ, "NOSVID_CONFIG": cls.config_file}
+            env={**os.environ, "NOSVID_CONFIG": cls.config_file},
         )
 
         # Wait for the server to start
@@ -65,6 +75,7 @@ channel:
         """Test that the server is running"""
         # Check if the process is still running
         self.assertIsNone(self.server_process.poll(), "Server process is not running")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,11 +2,13 @@
 YouTube API utilities for nosvid
 """
 
-import os
 import json
+import os
 import time
 from datetime import datetime, timedelta
+
 import googleapiclient.discovery
+
 
 def build_youtube_api(api_key):
     """
@@ -19,6 +21,7 @@ def build_youtube_api(api_key):
         YouTube API client
     """
     return googleapiclient.discovery.build("youtube", "v3", developerKey=api_key)
+
 
 def get_channel_info(api_key, channel_id):
     """
@@ -33,27 +36,27 @@ def get_channel_info(api_key, channel_id):
     """
     youtube = build_youtube_api(api_key)
 
-    request = youtube.channels().list(
-        part="snippet",
-        id=channel_id
-    )
+    request = youtube.channels().list(part="snippet", id=channel_id)
     response = request.execute()
 
-    if response.get('items'):
-        channel_info = response['items'][0]['snippet']
+    if response.get("items"):
+        channel_info = response["items"][0]["snippet"]
         return {
-            'title': channel_info.get('title', 'Unknown Channel'),
-            'description': channel_info.get('description', ''),
-            'published_at': channel_info.get('publishedAt', ''),
-            'thumbnail_url': channel_info.get('thumbnails', {}).get('high', {}).get('url', '')
+            "title": channel_info.get("title", "Unknown Channel"),
+            "description": channel_info.get("description", ""),
+            "published_at": channel_info.get("publishedAt", ""),
+            "thumbnail_url": channel_info.get("thumbnails", {})
+            .get("high", {})
+            .get("url", ""),
         }
 
     return {
-        'title': 'Unknown Channel',
-        'description': '',
-        'published_at': '',
-        'thumbnail_url': ''
+        "title": "Unknown Channel",
+        "description": "",
+        "published_at": "",
+        "thumbnail_url": "",
     }
+
 
 def get_cached_videos(metadata_dir, channel_id, max_age_hours=24):
     """
@@ -76,11 +79,13 @@ def get_cached_videos(metadata_dir, channel_id, max_age_hours=24):
         return [], False, False
 
     try:
-        with open(cache_file, 'r', encoding='utf-8') as f:
+        with open(cache_file, "r", encoding="utf-8") as f:
             cache_data = json.load(f)
 
         # Check if cache is fresh
-        cache_time = datetime.fromisoformat(cache_data.get('timestamp', '2000-01-01T00:00:00'))
+        cache_time = datetime.fromisoformat(
+            cache_data.get("timestamp", "2000-01-01T00:00:00")
+        )
         current_time = datetime.now()
         max_age = timedelta(hours=max_age_hours)
 
@@ -91,10 +96,11 @@ def get_cached_videos(metadata_dir, channel_id, max_age_hours=24):
         else:
             print(f"Using cached video list from {cache_time.isoformat()}")
 
-        return cache_data.get('videos', []), True, cache_fresh
+        return cache_data.get("videos", []), True, cache_fresh
     except Exception as e:
         print(f"Error reading cache: {e}")
         return [], False, False
+
 
 def save_videos_to_cache(metadata_dir, channel_id, videos):
     """
@@ -108,20 +114,23 @@ def save_videos_to_cache(metadata_dir, channel_id, videos):
     cache_file = os.path.join(metadata_dir, f"channel_videos_{channel_id}.json")
 
     cache_data = {
-        'channel_id': channel_id,
-        'timestamp': datetime.now().isoformat(),
-        'video_count': len(videos),
-        'videos': videos
+        "channel_id": channel_id,
+        "timestamp": datetime.now().isoformat(),
+        "video_count": len(videos),
+        "videos": videos,
     }
 
     try:
-        with open(cache_file, 'w', encoding='utf-8') as f:
+        with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(cache_data, f, indent=2, ensure_ascii=False)
         print(f"Saved {len(videos)} videos to cache")
     except Exception as e:
         print(f"Error saving cache: {e}")
 
-def get_all_videos_from_channel(api_key, channel_id, metadata_dir=None, force_refresh=False, max_pages=None):
+
+def get_all_videos_from_channel(
+    api_key, channel_id, metadata_dir=None, force_refresh=False, max_pages=None
+):
     """
     Get all videos from a channel
 
@@ -162,22 +171,22 @@ def get_all_videos_from_channel(api_key, channel_id, metadata_dir=None, force_re
                 maxResults=50,  # Maximum allowed by API
                 order="date",  # Sort by date (newest first)
                 type="video",  # Only return videos (not playlists or channels)
-                pageToken=next_page_token
+                pageToken=next_page_token,
             )
             response = request.execute()
 
             # Process each video
-            for item in response['items']:
+            for item in response["items"]:
                 video = {
-                    'title': item['snippet']['title'],
-                    'video_id': item['id']['videoId'],
-                    'published_at': item['snippet']['publishedAt'],
-                    'url': f"https://www.youtube.com/watch?v={item['id']['videoId']}"
+                    "title": item["snippet"]["title"],
+                    "video_id": item["id"]["videoId"],
+                    "published_at": item["snippet"]["publishedAt"],
+                    "url": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
                 }
                 videos.append(video)
 
             # Check if there are more pages
-            next_page_token = response.get('nextPageToken')
+            next_page_token = response.get("nextPageToken")
             if not next_page_token:
                 print(f"No more pages available. Retrieved all videos.")
                 break

@@ -6,9 +6,9 @@ This module provides functionality for managing video catalogs in the DecData pr
 """
 
 import json
-import time
 import threading
-from typing import Dict, List, Any, Optional
+import time
+from typing import Any, Dict, List, Optional
 
 
 class CatalogManager:
@@ -70,9 +70,11 @@ class CatalogManager:
             # Fetch all videos using pagination
             while True:
                 # Get a batch of videos from NosVid API
-                response = self.node.nosvid_api.list_videos(limit=batch_size, offset=offset)
-                videos_batch = response.get('videos', [])
-                total_count = response.get('total', 0)
+                response = self.node.nosvid_api.list_videos(
+                    limit=batch_size, offset=offset
+                )
+                videos_batch = response.get("videos", [])
+                total_count = response.get("total", 0)
 
                 if not videos_batch:
                     break
@@ -93,23 +95,25 @@ class CatalogManager:
 
             # Update local catalog with downloaded videos
             for video in all_videos:
-                video_id = video.get('video_id')
+                video_id = video.get("video_id")
                 if video_id:
                     # Check if the video has been downloaded
-                    platforms = video.get('platforms', {})
-                    youtube = platforms.get('youtube', {})
+                    platforms = video.get("platforms", {})
+                    youtube = platforms.get("youtube", {})
 
-                    if youtube.get('downloaded', False):
+                    if youtube.get("downloaded", False):
                         # Add to catalog without file path (we'll fetch content on demand)
                         self.node.video_catalog[video_id] = {
-                            'video_id': video_id,
-                            'title': video.get('title', ''),
-                            'published_at': video.get('published_at', ''),
-                            'duration': video.get('duration', 0),
-                            'platforms': platforms
+                            "video_id": video_id,
+                            "title": video.get("title", ""),
+                            "published_at": video.get("published_at", ""),
+                            "duration": video.get("duration", 0),
+                            "platforms": platforms,
                         }
 
-            print(f"Loaded {len(self.node.video_catalog)} downloaded videos out of {total_videos} total videos from NosVid API")
+            print(
+                f"Loaded {len(self.node.video_catalog)} downloaded videos out of {total_videos} total videos from NosVid API"
+            )
 
         except Exception as e:
             print(f"Error loading videos from NosVid API: {e}")
@@ -136,9 +140,11 @@ class CatalogManager:
                         return
 
                     # Get a batch of videos from NosVid API
-                    response = self.node.nosvid_api.list_videos(limit=batch_size, offset=offset)
-                    videos_batch = response.get('videos', [])
-                    total_count = response.get('total', 0)
+                    response = self.node.nosvid_api.list_videos(
+                        limit=batch_size, offset=offset
+                    )
+                    videos_batch = response.get("videos", [])
+                    total_count = response.get("total", 0)
 
                     if not videos_batch:
                         break
@@ -160,24 +166,26 @@ class CatalogManager:
                 # Update local catalog with downloaded videos
                 downloaded_count = 0
                 for video in all_videos:
-                    video_id = video.get('video_id')
+                    video_id = video.get("video_id")
                     if video_id:
                         # Check if the video has been downloaded
-                        platforms = video.get('platforms', {})
-                        youtube = platforms.get('youtube', {})
+                        platforms = video.get("platforms", {})
+                        youtube = platforms.get("youtube", {})
 
-                        if youtube.get('downloaded', False):
+                        if youtube.get("downloaded", False):
                             # Add to catalog without file path (we'll fetch content on demand)
                             self.node.video_catalog[video_id] = {
-                                'video_id': video_id,
-                                'title': video.get('title', ''),
-                                'published_at': video.get('published_at', ''),
-                                'duration': video.get('duration', 0),
-                                'platforms': platforms
+                                "video_id": video_id,
+                                "title": video.get("title", ""),
+                                "published_at": video.get("published_at", ""),
+                                "duration": video.get("duration", 0),
+                                "platforms": platforms,
                             }
                             downloaded_count += 1
 
-                print(f"Synced {total_videos} videos from NosVid API, {downloaded_count} downloaded videos in local catalog")
+                print(
+                    f"Synced {total_videos} videos from NosVid API, {downloaded_count} downloaded videos in local catalog"
+                )
 
                 # Sleep until next sync
                 for _ in range(self.sync_interval):
@@ -201,14 +209,16 @@ class CatalogManager:
             node: The node to send the catalog to
         """
         catalog_message = {
-            'type': 'catalog',
-            'node_id': self.node.id,
-            'videos': list(self.node.video_catalog.keys())
+            "type": "catalog",
+            "node_id": self.node.id,
+            "videos": list(self.node.video_catalog.keys()),
         }
 
         try:
             self.node.send_to_node(node, json.dumps(catalog_message))
-            print(f"Sent catalog to node {node.id} ({len(self.node.video_catalog)} videos)")
+            print(
+                f"Sent catalog to node {node.id} ({len(self.node.video_catalog)} videos)"
+            )
 
             # If we already have the other node's catalog, calculate which videos we have that they don't have
             if node.id in self.node.peers_catalog:
@@ -217,7 +227,9 @@ class CatalogManager:
                 videos_we_have_they_dont = our_videos - their_videos
 
                 if videos_we_have_they_dont:
-                    print(f"We have {len(videos_we_have_they_dont)} videos that node {node.id} doesn't have:")
+                    print(
+                        f"We have {len(videos_we_have_they_dont)} videos that node {node.id} doesn't have:"
+                    )
                     for video_id in sorted(list(videos_we_have_they_dont)):
                         print(f"  - {video_id}")
                 else:
@@ -233,8 +245,8 @@ class CatalogManager:
             node: The node that sent the message
             message: The catalog message
         """
-        node_id = message.get('node_id')
-        videos = message.get('videos', [])
+        node_id = message.get("node_id")
+        videos = message.get("videos", [])
 
         self.node.peers_catalog[node_id] = videos
         print(f"Received catalog from node {node_id} ({len(videos)} videos)")
@@ -245,7 +257,9 @@ class CatalogManager:
         videos_they_have_we_dont = their_videos - our_videos
 
         if videos_they_have_we_dont:
-            print(f"Node {node_id} has {len(videos_they_have_we_dont)} videos that we don't have:")
+            print(
+                f"Node {node_id} has {len(videos_they_have_we_dont)} videos that we don't have:"
+            )
 
             # For each video they have that we don't, request video_info
             for video_id in sorted(list(videos_they_have_we_dont)):
@@ -253,6 +267,7 @@ class CatalogManager:
 
                 # Request video info for this video
                 from .message_handlers import request_video_info
+
                 request_video_info(self.node, node, video_id)
         else:
             print(f"Node {node_id} doesn't have any videos that we don't have")

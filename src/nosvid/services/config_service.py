@@ -3,15 +3,17 @@ Configuration service for nosvid
 """
 
 import os
+from typing import Any, Dict, Optional
+
 import yaml
-from typing import Dict, Any, Optional
+
 
 class ConfigService:
     """
     Service for configuration operations
     """
 
-    def __init__(self, config_file: str = 'config.yaml'):
+    def __init__(self, config_file: str = "config.yaml"):
         """
         Initialize the service
 
@@ -29,7 +31,7 @@ class ConfigService:
             Configuration dictionary
         """
         if os.path.exists(self.config_file):
-            with open(self.config_file, 'r') as f:
+            with open(self.config_file, "r") as f:
                 return yaml.safe_load(f) or {}
         return {}
 
@@ -44,7 +46,7 @@ class ConfigService:
         Returns:
             Configuration value
         """
-        keys = key.split('.')
+        keys = key.split(".")
         value = self.config
 
         for k in keys:
@@ -63,7 +65,7 @@ class ConfigService:
             key: Configuration key (dot-separated for nested keys)
             value: Configuration value
         """
-        keys = key.split('.')
+        keys = key.split(".")
         config = self.config
 
         # Handle simple case
@@ -85,7 +87,7 @@ class ConfigService:
         """
         Save configuration to file
         """
-        with open(self.config_file, 'w') as f:
+        with open(self.config_file, "w") as f:
             yaml.dump(self.config, f, default_flow_style=False)
 
     def get_api_key(self, service: str) -> Optional[str]:
@@ -98,7 +100,7 @@ class ConfigService:
         Returns:
             API key or None if not found
         """
-        return self.get(f'{service}.api_key')
+        return self.get(f"{service}.api_key")
 
     def get_nostr_key(self, key_type: str) -> Optional[str]:
         """
@@ -110,7 +112,7 @@ class ConfigService:
         Returns:
             Nostr key or None if not found
         """
-        return self.get(f'nostr.{key_type}')
+        return self.get(f"nostr.{key_type}")
 
     def get_output_dir(self) -> str:
         """
@@ -119,9 +121,9 @@ class ConfigService:
         Returns:
             Output directory
         """
-        output_dir = self.get('defaults.output_dir')
+        output_dir = self.get("defaults.output_dir")
         if output_dir is None:
-            return './repository'
+            return "./repository"
         return output_dir
 
     def get_channel_title(self) -> str:
@@ -131,7 +133,7 @@ class ConfigService:
         Returns:
             Channel title
         """
-        channel_title = self.get('channel.title')
+        channel_title = self.get("channel.title")
         if channel_title is None:
-            return 'Einundzwanzig'
+            return "Einundzwanzig"
         return channel_title

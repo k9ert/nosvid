@@ -5,10 +5,10 @@ DecData - Decentralized Video Data Exchange
 Command-line interface for the DecData node.
 """
 
-import os
-import sys
 import argparse
 import importlib.util
+import os
+import sys
 
 # Check if the decdata module is installed
 spec = importlib.util.find_spec("decdata")
@@ -18,59 +18,110 @@ if spec is None:
 
 from decdata.decdata_node import DecDataNode
 
+
 def main():
     """
     Main entry point for the DecData CLI.
     """
-    parser = argparse.ArgumentParser(description='DecData - Decentralized Video Data Exchange')
-    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+    parser = argparse.ArgumentParser(
+        description="DecData - Decentralized Video Data Exchange"
+    )
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
     # Serve command
-    serve_parser = subparsers.add_parser('serve', help='Start a DecData node')
-    serve_parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
-    serve_parser.add_argument('--port', type=int, default=2122, help='Port to bind to')
-    serve_parser.add_argument('--nosvid-api-url', type=str, default='http://localhost:2121/api', help='URL of the NosVid API')
-    serve_parser.add_argument('--sync-interval', type=int, default=300, help='Interval in seconds for syncing with NosVid API')
-    serve_parser.add_argument('--max-connections', type=int, default=0, help='Maximum number of connections (0 for unlimited)')
+    serve_parser = subparsers.add_parser("serve", help="Start a DecData node")
+    serve_parser.add_argument(
+        "--host", type=str, default="0.0.0.0", help="Host to bind to"
+    )
+    serve_parser.add_argument("--port", type=int, default=2122, help="Port to bind to")
+    serve_parser.add_argument(
+        "--nosvid-api-url",
+        type=str,
+        default="http://localhost:2121/api",
+        help="URL of the NosVid API",
+    )
+    serve_parser.add_argument(
+        "--sync-interval",
+        type=int,
+        default=300,
+        help="Interval in seconds for syncing with NosVid API",
+    )
+    serve_parser.add_argument(
+        "--max-connections",
+        type=int,
+        default=0,
+        help="Maximum number of connections (0 for unlimited)",
+    )
 
     # Connect command
-    connect_parser = subparsers.add_parser('connect', help='Connect to another node')
-    connect_parser.add_argument('--host', type=str, required=True, help='Host to connect to')
-    connect_parser.add_argument('--port', type=int, required=True, help='Port to connect to')
-    connect_parser.add_argument('--local-port', type=int, default=0, help='Local port to bind to (0 for auto-assign)')
-    connect_parser.add_argument('--nosvid-api-url', type=str, default='http://localhost:2121/api', help='URL of the NosVid API')
+    connect_parser = subparsers.add_parser("connect", help="Connect to another node")
+    connect_parser.add_argument(
+        "--host", type=str, required=True, help="Host to connect to"
+    )
+    connect_parser.add_argument(
+        "--port", type=int, required=True, help="Port to connect to"
+    )
+    connect_parser.add_argument(
+        "--local-port",
+        type=int,
+        default=0,
+        help="Local port to bind to (0 for auto-assign)",
+    )
+    connect_parser.add_argument(
+        "--nosvid-api-url",
+        type=str,
+        default="http://localhost:2121/api",
+        help="URL of the NosVid API",
+    )
 
     # Search command
-    search_parser = subparsers.add_parser('search', help='Search for videos')
-    search_parser.add_argument('query', type=str, nargs='?', help='Search query')
-    search_parser.add_argument('--id', type=str, help='Video ID to search for')
+    search_parser = subparsers.add_parser("search", help="Search for videos")
+    search_parser.add_argument("query", type=str, nargs="?", help="Search query")
+    search_parser.add_argument("--id", type=str, help="Video ID to search for")
 
     # Download command
-    download_parser = subparsers.add_parser('download', help='Download a video')
-    download_parser.add_argument('video_id', type=str, help='ID of the video to download')
-    download_parser.add_argument('--node', type=str, help='ID of the node to download from')
-    download_parser.add_argument('--output', type=str, help='Output directory')
+    download_parser = subparsers.add_parser("download", help="Download a video")
+    download_parser.add_argument(
+        "video_id", type=str, help="ID of the video to download"
+    )
+    download_parser.add_argument(
+        "--node", type=str, help="ID of the node to download from"
+    )
+    download_parser.add_argument("--output", type=str, help="Output directory")
 
     # Interactive command
-    interactive_parser = subparsers.add_parser('interactive', help='Start interactive mode')
-    interactive_parser.add_argument('--local-port', type=int, default=0, help='Local port to bind to (0 for auto-assign)')
-    interactive_parser.add_argument('--nosvid-api-url', type=str, default='http://localhost:2121/api', help='URL of the NosVid API')
+    interactive_parser = subparsers.add_parser(
+        "interactive", help="Start interactive mode"
+    )
+    interactive_parser.add_argument(
+        "--local-port",
+        type=int,
+        default=0,
+        help="Local port to bind to (0 for auto-assign)",
+    )
+    interactive_parser.add_argument(
+        "--nosvid-api-url",
+        type=str,
+        default="http://localhost:2121/api",
+        help="URL of the NosVid API",
+    )
 
     args = parser.parse_args()
 
-    if args.command == 'serve':
+    if args.command == "serve":
         serve_node(args)
-    elif args.command == 'connect':
+    elif args.command == "connect":
         connect_to_node(args)
-    elif args.command == 'interactive':
+    elif args.command == "interactive":
         interactive_mode(args)
-    elif args.command == 'search':
+    elif args.command == "search":
         search_videos(args)
-    elif args.command == 'download':
+    elif args.command == "download":
         download_video(args)
     else:
         parser.print_help()
         sys.exit(1)
+
 
 def serve_node(args):
     """
@@ -84,7 +135,7 @@ def serve_node(args):
         port=args.port,
         nosvid_api_url=args.nosvid_api_url,
         max_connections=args.max_connections,
-        sync_interval=args.sync_interval
+        sync_interval=args.sync_interval,
     )
 
     node.start()
@@ -102,6 +153,7 @@ def serve_node(args):
         node.join()
         print("Node stopped")
 
+
 def connect_to_node(args):
     """
     Connect to another node.
@@ -110,9 +162,7 @@ def connect_to_node(args):
 
     # Create and start the node
     node = DecDataNode(
-        host='0.0.0.0',
-        port=args.local_port,
-        nosvid_api_url=args.nosvid_api_url
+        host="0.0.0.0", port=args.local_port, nosvid_api_url=args.nosvid_api_url
     )
 
     node.start()
@@ -139,6 +189,7 @@ def connect_to_node(args):
     node.join()
     print("Node stopped")
 
+
 def search_videos(args):
     """
     Search for videos.
@@ -146,7 +197,7 @@ def search_videos(args):
     import time
 
     # Create a temporary node for searching
-    node = DecDataNode('0.0.0.0', 0)
+    node = DecDataNode("0.0.0.0", 0)
     node.start()
 
     try:
@@ -169,6 +220,7 @@ def search_videos(args):
         node.stop()
         node.join()
 
+
 def download_video(args):
     """
     Download a video.
@@ -176,7 +228,7 @@ def download_video(args):
     import time
 
     # Create a temporary node for downloading
-    node = DecDataNode('0.0.0.0', 0, share_dir=args.output)
+    node = DecDataNode("0.0.0.0", 0, share_dir=args.output)
     node.start()
 
     try:
@@ -195,10 +247,10 @@ def download_video(args):
         # Wait for download to complete (in a real application, this would be handled asynchronously)
         while request_id in node.active_transfers:
             transfer = node.active_transfers[request_id]
-            if transfer['status'] == 'completed':
+            if transfer["status"] == "completed":
                 print(f"Download completed: {args.video_id}")
                 break
-            elif transfer['status'] == 'failed':
+            elif transfer["status"] == "failed":
                 print(f"Download failed: {args.video_id}")
                 break
 
@@ -207,18 +259,21 @@ def download_video(args):
         node.stop()
         node.join()
 
+
 def interactive_mode(args):
     """
     Interactive mode for testing node communication.
     """
     import cmd
-    import time
-    import json
     import hashlib
+    import json
+    import time
 
     class DecDataShell(cmd.Cmd):
-        intro = 'Welcome to DecData interactive shell. Type help or ? to list commands.\n'
-        prompt = 'decdata> '
+        intro = (
+            "Welcome to DecData interactive shell. Type help or ? to list commands.\n"
+        )
+        prompt = "decdata> "
 
         def __init__(self, node):
             super().__init__()
@@ -247,10 +302,11 @@ def interactive_mode(args):
         def _print_json(self, data):
             """Helper to print JSON data nicely"""
             import json
+
             print(json.dumps(data, indent=2))
 
         def do_connect(self, arg):
-            'Connect to a remote node: connect <host> <port>'
+            "Connect to a remote node: connect <host> <port>"
             try:
                 host, port = arg.split()
                 port = int(port)
@@ -262,7 +318,7 @@ def interactive_mode(args):
                 print("Usage: connect <host> <port>")
 
         def do_peers(self, _):
-            'List connected peers'
+            "List connected peers"
             peers = self.node.get_peers()
             if not peers:
                 print("No connected peers")
@@ -274,7 +330,7 @@ def interactive_mode(args):
                 print("-" * 40)
 
         def do_send(self, arg):
-            'Send a simple message to all peers: send <message>'
+            "Send a simple message to all peers: send <message>"
             if not arg:
                 print("Usage: send <message>")
                 return
@@ -287,7 +343,7 @@ def interactive_mode(args):
             print("Message sent to all peers")
 
         def do_sendto(self, arg):
-            'Send a simple message to a specific peer: sendto <peer_index> <message>'
+            "Send a simple message to a specific peer: sendto <peer_index> <message>"
             try:
                 peer_idx, message_text = arg.split(maxsplit=1)
                 peer = self._get_peer(peer_idx)
@@ -304,7 +360,7 @@ def interactive_mode(args):
                 print("Usage: sendto <peer_index> <message>")
 
         def do_catalog(self, arg):
-            'Request catalog from a specific peer: catalog <peer_index>'
+            "Request catalog from a specific peer: catalog <peer_index>"
             if not arg:
                 print("Usage: catalog <peer_index>")
                 return
@@ -318,7 +374,7 @@ def interactive_mode(args):
             message = {
                 "type": "catalog",
                 "node_id": self.node.id,
-                "videos": list(self.node.video_catalog.keys())
+                "videos": list(self.node.video_catalog.keys()),
             }
 
             print(f"\nSending catalog request to peer {arg}:")
@@ -328,7 +384,7 @@ def interactive_mode(args):
             print(f"Catalog request sent to peer {arg}")
 
         def do_search(self, arg):
-            'Search for videos: search <peer_index> [--id VIDEO_ID] [--query TEXT]'
+            "Search for videos: search <peer_index> [--id VIDEO_ID] [--query TEXT]"
             args = arg.split()
             if not args:
                 print("Usage: search <peer_index> [--id VIDEO_ID] [--query TEXT]")
@@ -344,11 +400,11 @@ def interactive_mode(args):
             query = None
             i = 1
             while i < len(args):
-                if args[i] == '--id' and i+1 < len(args):
-                    video_id = args[i+1]
+                if args[i] == "--id" and i + 1 < len(args):
+                    video_id = args[i + 1]
                     i += 2
-                elif args[i] == '--query' and i+1 < len(args):
-                    query = args[i+1]
+                elif args[i] == "--query" and i + 1 < len(args):
+                    query = args[i + 1]
                     i += 2
                 else:
                     i += 1
@@ -360,14 +416,17 @@ def interactive_mode(args):
             # Create search message
             import hashlib
             import time
-            search_id = hashlib.md5(f"{time.time()}-{query}-{video_id}".encode()).hexdigest()
+
+            search_id = hashlib.md5(
+                f"{time.time()}-{query}-{video_id}".encode()
+            ).hexdigest()
             self.last_search_id = search_id
 
             message = {
                 "type": "search",
                 "search_id": search_id,
                 "query": query,
-                "video_id": video_id
+                "video_id": video_id,
             }
 
             print(f"\nSending search request to peer {peer_idx}:")
@@ -377,7 +436,7 @@ def interactive_mode(args):
             print(f"Search request sent to peer {peer_idx} (Search ID: {search_id})")
 
         def do_download(self, arg):
-            'Request to download a video: download <peer_index> <video_id>'
+            "Request to download a video: download <peer_index> <video_id>"
             args = arg.split()
             if len(args) != 2:
                 print("Usage: download <peer_index> <video_id>")
@@ -391,23 +450,26 @@ def interactive_mode(args):
             # Create download request
             import hashlib
             import time
+
             request_id = hashlib.md5(f"{time.time()}-{video_id}".encode()).hexdigest()
             self.last_request_id = request_id
 
             message = {
                 "type": "download_request",
                 "request_id": request_id,
-                "video_id": video_id
+                "video_id": video_id,
             }
 
             print(f"\nSending download request to peer {peer_idx}:")
             self._print_json(message)
 
             self.node.send_to_node(peer, json.dumps(message))
-            print(f"Download request sent to peer {peer_idx} (Request ID: {request_id})")
+            print(
+                f"Download request sent to peer {peer_idx} (Request ID: {request_id})"
+            )
 
         def do_video_info(self, arg):
-            'Request video information: video_info <peer_index> <video_id>'
+            "Request video information: video_info <peer_index> <video_id>"
             args = arg.split()
             if len(args) != 2:
                 print("Usage: video_info <peer_index> <video_id>")
@@ -421,23 +483,26 @@ def interactive_mode(args):
             # Create video info request
             import hashlib
             import time
+
             request_id = hashlib.md5(f"{time.time()}-{video_id}".encode()).hexdigest()
             self.last_request_id = request_id
 
             message = {
                 "type": "video_info_request",
                 "request_id": request_id,
-                "video_id": video_id
+                "video_id": video_id,
             }
 
             print(f"\nSending video info request to peer {peer_idx}:")
             self._print_json(message)
 
             self.node.send_to_node(peer, json.dumps(message))
-            print(f"Video info request sent to peer {peer_idx} (Request ID: {request_id})")
+            print(
+                f"Video info request sent to peer {peer_idx} (Request ID: {request_id})"
+            )
 
         def do_local_catalog(self, _):
-            'Show the local video catalog'
+            "Show the local video catalog"
             if not self.node.video_catalog:
                 print("Local catalog is empty")
                 return
@@ -445,12 +510,12 @@ def interactive_mode(args):
             print("\nLocal video catalog:")
             print("-" * 60)
             for video_id, metadata in self.node.video_catalog.items():
-                title = metadata.get('title', 'Unknown')
+                title = metadata.get("title", "Unknown")
                 print(f"- {video_id}: {title}")
             print("-" * 60)
 
         def do_peer_catalog(self, arg):
-            'Show the catalog of a specific peer: peer_catalog <peer_index>'
+            "Show the catalog of a specific peer: peer_catalog <peer_index>"
             if not arg:
                 print("Usage: peer_catalog <peer_index>")
                 return
@@ -475,7 +540,7 @@ def interactive_mode(args):
             print("-" * 60)
 
         def do_exit(self, _):
-            'Exit the shell'
+            "Exit the shell"
             print("Stopping node...")
             self.node.stop()
             self.node.join()
@@ -483,15 +548,13 @@ def interactive_mode(args):
             return True
 
         def do_EOF(self, arg):
-            'Exit on Ctrl-D'
+            "Exit on Ctrl-D"
             print()  # Empty line
             return self.do_exit(arg)
 
     # Create and start the node
     node = DecDataNode(
-        host='0.0.0.0',
-        port=args.local_port,
-        nosvid_api_url=args.nosvid_api_url
+        host="0.0.0.0", port=args.local_port, nosvid_api_url=args.nosvid_api_url
     )
 
     # Add a message handler for the interactive mode
@@ -499,6 +562,7 @@ def interactive_mode(args):
         try:
             # Handle different data types
             import json
+
             if isinstance(data, dict):
                 message = data
             elif isinstance(data, str):
@@ -512,10 +576,10 @@ def interactive_mode(args):
             print("-" * 60)
             print(json.dumps(message, indent=2))
             print("-" * 60)
-            print(f"{DecDataShell.prompt}", end='', flush=True)
+            print(f"{DecDataShell.prompt}", end="", flush=True)
         except Exception as e:
             print(f"\nError handling message: {e}")
-            print(f"{DecDataShell.prompt}", end='', flush=True)
+            print(f"{DecDataShell.prompt}", end="", flush=True)
 
     node.add_message_handler(message_handler)
     node.start()
@@ -532,5 +596,6 @@ def interactive_mode(args):
         node.join()
         print("Node stopped")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

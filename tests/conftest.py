@@ -4,13 +4,14 @@ Shared test fixtures for all tests.
 
 import os
 import sys
-import pytest
-import yaml
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+import yaml
+
 # Add the src directory to the Python path
-src_dir = Path(__file__).parent.parent / 'src'
+src_dir = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_dir))
 
 
@@ -23,28 +24,24 @@ def temp_config_file(tmp_path):
         Path to the temporary config file
     """
     config_path = tmp_path / "config.yaml"
-    config = {
-        'decdata': {
-            'node_prefix': 'test-node-'
-        }
-    }
+    config = {"decdata": {"node_prefix": "test-node-"}}
 
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         yaml.dump(config, f)
 
     # Store the original config path to restore later
-    original_config = os.environ.get('NOSVID_CONFIG_PATH')
+    original_config = os.environ.get("NOSVID_CONFIG_PATH")
 
     # Set the environment variable to point to our test config
-    os.environ['NOSVID_CONFIG_PATH'] = str(config_path)
+    os.environ["NOSVID_CONFIG_PATH"] = str(config_path)
 
     yield config_path
 
     # Restore the original config path
     if original_config:
-        os.environ['NOSVID_CONFIG_PATH'] = original_config
+        os.environ["NOSVID_CONFIG_PATH"] = original_config
     else:
-        os.environ.pop('NOSVID_CONFIG_PATH', None)
+        os.environ.pop("NOSVID_CONFIG_PATH", None)
 
 
 @pytest.fixture
@@ -67,12 +64,16 @@ def mock_p2p_node(monkeypatch):
         self.terminate_flag = False
 
     # Apply the monkeypatch to the Node.__init__ method
-    monkeypatch.setattr('p2pnetwork.node.Node.__init__', mock_init)
+    monkeypatch.setattr("p2pnetwork.node.Node.__init__", mock_init)
 
     # Mock other methods to do nothing
-    monkeypatch.setattr('p2pnetwork.node.Node.start', lambda self: None)
-    monkeypatch.setattr('p2pnetwork.node.Node.stop', lambda self: None)
-    monkeypatch.setattr('p2pnetwork.node.Node.connect_with_node', lambda self, host, port: True)
-    monkeypatch.setattr('p2pnetwork.node.Node.send_to_node', lambda self, node, data: None)
+    monkeypatch.setattr("p2pnetwork.node.Node.start", lambda self: None)
+    monkeypatch.setattr("p2pnetwork.node.Node.stop", lambda self: None)
+    monkeypatch.setattr(
+        "p2pnetwork.node.Node.connect_with_node", lambda self, host, port: True
+    )
+    monkeypatch.setattr(
+        "p2pnetwork.node.Node.send_to_node", lambda self, node, data: None
+    )
 
     return mock_node

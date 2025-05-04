@@ -4,8 +4,10 @@ Tests for the VideoService
 
 import unittest
 from unittest.mock import Mock, patch
-from src.nosvid.models.video import Video, Platform
+
+from src.nosvid.models.video import Platform, Video
 from src.nosvid.services.video_service import VideoService
+
 
 class TestVideoService(unittest.TestCase):
     """Tests for the VideoService"""
@@ -21,21 +23,21 @@ class TestVideoService(unittest.TestCase):
             video_id="video1",
             title="Test Video 1",
             published_at="2023-01-01T12:00:00",
-            duration=60
+            duration=60,
         )
 
         self.video2 = Video(
             video_id="video2",
             title="Test Video 2",
             published_at="2023-01-02T12:00:00",
-            duration=120
+            duration=120,
         )
 
         self.video3 = Video(
             video_id="video3",
             title="Test Video 3",
             published_at="2023-01-03T12:00:00",
-            duration=180
+            duration=180,
         )
 
     def test_get_video_success(self):
@@ -66,7 +68,9 @@ class TestVideoService(unittest.TestCase):
         self.assertIsNone(result.data)
 
         # Check that the repository was called correctly
-        self.mock_repo.get_by_id.assert_called_once_with("nonexistent", self.channel_title)
+        self.mock_repo.get_by_id.assert_called_once_with(
+            "nonexistent", self.channel_title
+        )
 
     def test_get_video_error(self):
         """Test getting a video with an error"""
@@ -101,7 +105,7 @@ class TestVideoService(unittest.TestCase):
             limit=None,
             offset=0,
             sort_by="published_at",
-            sort_order="desc"
+            sort_order="desc",
         )
 
     def test_list_videos_with_pagination(self):
@@ -110,11 +114,7 @@ class TestVideoService(unittest.TestCase):
         self.mock_repo.list.return_value = [self.video2, self.video3]
 
         # Call the service
-        result = self.service.list_videos(
-            self.channel_title,
-            limit=2,
-            offset=1
-        )
+        result = self.service.list_videos(self.channel_title, limit=2, offset=1)
 
         # Check the result
         self.assertTrue(result.success)
@@ -126,7 +126,7 @@ class TestVideoService(unittest.TestCase):
             limit=2,
             offset=1,
             sort_by="published_at",
-            sort_order="desc"
+            sort_order="desc",
         )
 
     def test_list_videos_with_sorting(self):
@@ -136,9 +136,7 @@ class TestVideoService(unittest.TestCase):
 
         # Call the service
         result = self.service.list_videos(
-            self.channel_title,
-            sort_by="title",
-            sort_order="asc"
+            self.channel_title, sort_by="title", sort_order="asc"
         )
 
         # Check the result
@@ -151,7 +149,7 @@ class TestVideoService(unittest.TestCase):
             limit=None,
             offset=0,
             sort_by="title",
-            sort_order="asc"
+            sort_order="asc",
         )
 
     def test_list_videos_error(self):
@@ -172,10 +170,10 @@ class TestVideoService(unittest.TestCase):
             limit=None,
             offset=0,
             sort_by="published_at",
-            sort_order="desc"
+            sort_order="desc",
         )
 
-    @patch('src.nosvid.services.video_service.download_video_func')
+    @patch("src.nosvid.services.video_service.download_video_func")
     def test_download_video_success(self, mock_download):
         """Test downloading a video successfully"""
         # Set up the mocks
@@ -198,7 +196,7 @@ class TestVideoService(unittest.TestCase):
         mock_download.assert_called_once_with(
             video_id="video1",
             videos_dir=f"./repository/{self.channel_title}/videos",
-            quality="best"
+            quality="best",
         )
 
         # Check that the video was updated correctly
@@ -207,7 +205,7 @@ class TestVideoService(unittest.TestCase):
         self.assertTrue(saved_video.platforms["youtube"].downloaded)
         self.assertIsNotNone(saved_video.platforms["youtube"].downloaded_at)
 
-    @patch('src.nosvid.services.video_service.download_video_func')
+    @patch("src.nosvid.services.video_service.download_video_func")
     def test_download_video_not_found(self, mock_download):
         """Test downloading a video that doesn't exist"""
         # Set up the mocks
@@ -221,12 +219,14 @@ class TestVideoService(unittest.TestCase):
         self.assertEqual(result.error, "Video not found: nonexistent")
 
         # Check that the repository was called correctly
-        self.mock_repo.get_by_id.assert_called_once_with("nonexistent", self.channel_title)
+        self.mock_repo.get_by_id.assert_called_once_with(
+            "nonexistent", self.channel_title
+        )
 
         # Check that the download function was not called
         mock_download.assert_not_called()
 
-    @patch('src.nosvid.services.video_service.download_video_func')
+    @patch("src.nosvid.services.video_service.download_video_func")
     def test_download_video_download_error(self, mock_download):
         """Test downloading a video with a download error"""
         # Set up the mocks
@@ -247,10 +247,10 @@ class TestVideoService(unittest.TestCase):
         mock_download.assert_called_once_with(
             video_id="video1",
             videos_dir=f"./repository/{self.channel_title}/videos",
-            quality="best"
+            quality="best",
         )
 
-    @patch('src.nosvid.services.video_service.download_video_func')
+    @patch("src.nosvid.services.video_service.download_video_func")
     def test_download_video_save_error(self, mock_download):
         """Test downloading a video with a save error"""
         # Set up the mocks
@@ -273,7 +273,7 @@ class TestVideoService(unittest.TestCase):
         mock_download.assert_called_once_with(
             video_id="video1",
             videos_dir=f"./repository/{self.channel_title}/videos",
-            quality="best"
+            quality="best",
         )
 
     def test_save_video_success(self):
@@ -335,6 +335,7 @@ class TestVideoService(unittest.TestCase):
 
         # Check that the repository was called correctly
         self.mock_repo.delete.assert_called_once_with("video1", self.channel_title)
+
 
 if __name__ == "__main__":
     unittest.main()
